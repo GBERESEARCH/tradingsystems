@@ -1,7 +1,9 @@
 # Needed packages / versions
 numpy >= 1.16.2
 pandas >= 1.0.0
-
+norgatedata >= 1.0.48
+yahoofinancials >= 1.5
+technicalmethods >= 0.1.0
 
 
 
