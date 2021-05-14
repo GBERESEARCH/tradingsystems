@@ -12,7 +12,7 @@ from yahoofinancials import YahooFinancials
 from decimal import Decimal
 
 
-class System():
+class Data():
     
     def __init__(self):
         
