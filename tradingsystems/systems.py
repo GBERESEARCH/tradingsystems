@@ -54,6 +54,164 @@ class Data():
                       
         return kwargs    
    
+    
+    def test_strategy(
+            self, ticker=None, start_date=None, end_date=None, lookback=None, 
+            short_ma=None, medium_ma=None, long_ma=None, ma_1=None, ma_2=None,
+            ma_3=None, ma_4=None,position_size=None, source=None, 
+            slippage=None, commission=None, strategy=None):
+        """
+        Run a backtest over the chosen strategy
+
+        Parameters
+        ----------
+        ticker : Str, optional
+            Underlying to test. The default '$SPX'.
+        start_date : Str, optional
+            Date to begin backtest. Format is YYYY-MM-DD. The default is 500 
+            business days prior (circa 2 years).
+        end_date : Str, optional
+            Date to end backtest. Format is YYYY-MM-DD. The default is the 
+            last business day.
+        lookback : Int, optional
+            Number of business days to use for the backtest. The default is 500 
+            business days (circa 2 years).
+        short_ma : Int, optional
+            The fastest of the 3 moving averages. The default is 4 periods.
+        medium_ma : Int, optional
+            The middle of the 3 moving averages. The default is 9 periods.
+        long_ma : Int, optional
+            The slowest of the 3 moving averages. The default is 18 periods.
+        position_size : Int, optional
+            The number of units to trade. The default is 100.
+        source : Str, optional
+            The data source to use, either 'norgate' or 'yahoo'. The default 
+            is 'norgate'.
+        slippage : Float, optional
+            The amount of slippage to apply to traded prices. The default is 
+            $0.05 per unit.
+        commission : Float, optional
+            The amount of commission charge to apply to each trade. The 
+            default is $0.00.
+
+        Returns
+        -------
+        Results
+            Prints out performance data for the strategy.
+
+        """
+                
+        # If data is not supplied as an input, take default values 
+        (ticker, lookback, short_ma, medium_ma, long_ma, ma_1, ma_2, ma_3, 
+         ma_4, position_size, source, slippage, commission,
+         strategy) = itemgetter(
+             'ticker', 'lookback', 'short_ma', 'medium_ma', 'long_ma', 'ma_1', 
+             'ma_2', 'ma_3', 'ma_4', 'position_size', 'source', 'slippage', 
+             'commission', 'strategy')(self._refresh_params_default(
+                 ticker=ticker, lookback=lookback, short_ma=short_ma, 
+                 medium_ma=medium_ma, long_ma=long_ma, ma_1=ma_1, ma_2=ma_2, 
+                 ma_3=ma_3, ma_4=ma_4, position_size=position_size, 
+                 source=source, slippage=slippage, commission=commission, 
+                 strategy=strategy))
+        
+        # Set the start and end dates if not provided
+        self._date_set(
+            start_date=start_date, end_date=end_date, lookback=lookback)
+        
+        # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
+        df = self.create_base_data(
+            ticker=ticker, start_date=self.start_date, end_date=self.end_date, 
+            source=source)
+
+        df, strategy_label = self._strategy_selection(
+            short_ma=short_ma, medium_ma=medium_ma, long_ma=long_ma, ma_1=ma_1, 
+            ma_2=ma_2, ma_3=ma_3, ma_4=ma_4, df=df, 
+            position_size=position_size, strategy=strategy)
+        
+        # Calculate the trades and pnl for the strategy
+        self.df = self._profit_data(df=df, position_size=position_size, 
+                                   slippage=slippage, commission=commission)
+        
+        # Create dictionary of performance data and print out results
+        self._output_results(df=self.df, ticker=ticker, 
+                             strategy_label=strategy_label)
+
+        return self
+        
+
+    def _strategy_selection(self, **kwargs):
+        """
+        Create label and price signal for chosen strategy
+
+        Parameters
+        ----------
+        **kwargs : Various
+            The input parameters necessary for the chosen strategy.
+
+        Raises
+        ------
+        ValueError
+            If no correct strategy is chosen.
+
+        Returns
+        -------
+        df : DataFrame
+            Price data and trading signals.
+        strategy_label : Str
+            The longname of the strategy.
+
+        """
+        
+        if kwargs['strategy'] == '3MA':
+            """
+            Triple moving average strategy which is long if 
+            short_ma > medium_ma > long_ma, short if 
+            short_ma < medium_ma < long_ma and flat otherwise
+            """
+            
+            # Set the strategy label
+            strategy_label = str('Triple MA : '
+                                 +str(kwargs['short_ma'])
+                                 +'-'
+                                 +str(kwargs['medium_ma'])
+                                 +'-'
+                                 +str(kwargs['long_ma']))
+            
+            # Update the DataFrame with the Triple moving average signal
+            df = self._triple_ma_signal(
+                df=kwargs['df'], short_ma=kwargs['short_ma'], 
+                medium_ma=kwargs['medium_ma'], long_ma=kwargs['long_ma'], 
+                position_size=kwargs['position_size'])
+            
+        elif kwargs['strategy'] == '4MA':
+            """
+            Quad moving average strategy which is long if ma_1 > ma_2 
+            and ma_3 > ma_4, short if ma_1 < ma_2 and ma_3 < ma_4
+            and flat otherwise
+            """    
+            
+            # Set the strategy label based on the 4 moving averages         
+            strategy_label = str('Double MA Cross : '
+                                 +str(kwargs['ma_1'])
+                                 +'-'
+                                 +str(kwargs['ma_2'])
+                                 +' '
+                                 +str(kwargs['ma_3'])
+                                 +'-'
+                                 +str(kwargs['ma_4']))
+            
+            # Update the DataFrame with the Quad moving average signal
+            df = self._quad_ma_signal(
+                df=kwargs['df'], ma_1=kwargs['ma_1'], ma_2=kwargs['ma_2'], 
+                ma_3=kwargs['ma_3'], ma_4=kwargs['ma_4'], 
+                position_size=kwargs['position_size']) 
+            
+        else:
+            raise ValueError("Please enter a vilid strategy")
+                
+        
+        return df, strategy_label
+        
 
     def test_strategy_3MA(
             self, ticker=None, start_date=None, end_date=None, lookback=None, 
@@ -114,7 +272,7 @@ class Data():
                      slippage=slippage, commission=commission))
         
         # Set the strategy label based on the 3 moving averages         
-        strategy = str('Triple MA : '+str(short_ma)+'-'+str(medium_ma)+
+        strategy_label = str('Triple MA : '+str(short_ma)+'-'+str(medium_ma)+
                        '-'+str(long_ma))
         
         # Set the start and end dates if not provided
@@ -136,7 +294,8 @@ class Data():
                                    slippage=slippage, commission=commission)
         
         # Create dictionary of performance data and print out results
-        self._output_results(df=self.df, ticker=ticker, strategy=strategy)
+        self._output_results(df=self.df, ticker=ticker, 
+                             strategy_label=strategy_label)
 
         return self
     
@@ -203,7 +362,7 @@ class Data():
                      source=source, slippage=slippage, commission=commission))
         
         # Set the strategy label based on the 4 moving averages         
-        strategy = str('Double MA Cross : '+str(ma_1)+'-'+str(ma_2)+
+        strategy_label = str('Double MA Cross : '+str(ma_1)+'-'+str(ma_2)+
                        ' '+str(ma_3)+'-'+str(ma_4))
 
         # Set the start and end dates if not provided
@@ -225,7 +384,8 @@ class Data():
                                    slippage=slippage, commission=commission)
 
         # Create dictionary of performance data and print out results
-        self._output_results(df=self.df, ticker=ticker, strategy=strategy)
+        self._output_results(df=self.df, ticker=ticker, 
+                             strategy_label=strategy_label)
     
         return self
     
@@ -882,7 +1042,7 @@ class Data():
         return df        
    
         
-    def _output_results(self, df, ticker, strategy):
+    def _output_results(self, df, ticker, strategy_label):
         """
         Create dictionary of performance data and print out results of backtest
 
@@ -903,7 +1063,8 @@ class Data():
         """
         
         # Create performance data dictionary
-        self.performance_data(df=df, contract=ticker, strategy=strategy)
+        self.performance_data(df=df, contract=ticker, 
+                              strategy_label=strategy_label)
         
         # Print out results
         self.report_table(input_dict=self.perf_dict)
@@ -911,7 +1072,7 @@ class Data():
         return self
 
 
-    def performance_data(self, df, contract, strategy):
+    def performance_data(self, df, contract, strategy_label):
         """
         Create dictionary of performance data
 
@@ -936,7 +1097,7 @@ class Data():
         
         # Contract and strategy details
         perf_dict['contract'] = contract
-        perf_dict['strategy'] = strategy
+        perf_dict['strategy'] = strategy_label
         
         # Slippage and commission in dollars
         perf_dict['slippage'] = self.slippage

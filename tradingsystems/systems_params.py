@@ -19,6 +19,7 @@ system_params_dict = {
     'df_source':'norgate',
     'df_slippage':0.05,
     'df_commission':0.00,
+    'df_strategy':'3MA',
     
     # lists of parameters for each of the trend flags calculated 
     # in fields function
