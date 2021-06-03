@@ -5,7 +5,7 @@ import numpy as np
 import math
 import systems_params as sp
 import datetime as dt
-import technicalmethods.methods as methods
+from technicalmethods.methods import Indicators
 from operator import itemgetter
 from pandas.tseries.offsets import BDay
 from yahoofinancials import YahooFinancials
@@ -15,9 +15,6 @@ from decimal import Decimal
 class Data():
     
     def __init__(self):
-        
-        # Inherit methods from methods.Indicators
-        methods.Indicators.__init__(self)
         
         # Import dictionary of default parameters 
         self.df_dict = sp.system_params_dict
@@ -272,7 +269,8 @@ class Data():
         return self
 
     
-    def create_base_data(self, ticker, start_date, end_date, source):
+    @classmethod
+    def create_base_data(cls, ticker, start_date, end_date, source):
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
 
@@ -308,7 +306,7 @@ class Data():
         
         # Extract data from Yahoo Finance
         elif source == 'yahoo':
-            df = self._return_yahoo_data(ticker=ticker, start_date=start_date, 
+            df = cls._return_yahoo_data(ticker=ticker, start_date=start_date, 
                                          end_date=end_date)
         
             return df
@@ -318,7 +316,8 @@ class Data():
             print('Choose norgate or yahoo as data source')
             
     
-    def _return_yahoo_data(self, ticker, start_date, end_date):
+    @staticmethod
+    def _return_yahoo_data(ticker, start_date, end_date):
         """
         Create DataFrame of historic prices for specified ticker.
 
@@ -367,8 +366,9 @@ class Data():
         
         return df
 
-            
-    def _triple_ma_signal(self, df, short_ma, medium_ma, long_ma, 
+    
+    @classmethod        
+    def _triple_ma_signal(cls, df, short_ma, medium_ma, long_ma, 
                          position_size):
         """
         Create trading signals for Triple MA strategy
@@ -404,7 +404,7 @@ class Data():
         
         # Create the trade signal fields
         start, pos, trade_signal, trade_number, trade_count = (
-            self._create_signal_fields(column=df['long_ma']))
+            cls._create_signal_fields(column=df['long_ma']))
         
         # for each row in the DataFrame after the longest MA has started
         for row in range(start + 1, len(df['long_ma'])):
@@ -441,7 +441,7 @@ class Data():
 
             # Calculate trade details    
             trade_signal, pos, trade_number, \
-                trade_count = self._calculate_trades(
+                trade_count = cls._calculate_trades(
                     row=row, trade_signal=trade_signal, pos=pos, 
                     trade_number=trade_number, trade_count=trade_count)
     
@@ -453,7 +453,8 @@ class Data():
         return df
     
     
-    def _quad_ma_signal(self, df, ma_1, ma_2, ma_3, ma_4, position_size):
+    @classmethod
+    def _quad_ma_signal(cls, df, ma_1, ma_2, ma_3, ma_4, position_size):
         """
         Create trading signals for Quad MA strategy
 
@@ -493,7 +494,7 @@ class Data():
         
         # Create the trade signal fields
         start, pos, trade_signal, trade_number, trade_count = (
-            self._create_signal_fields(column=df['ma_4']))
+            cls._create_signal_fields(column=df['ma_4']))
     
         # for each row in the DataFrame after the longest MA has started
         for row in range(start + 1, len(df['ma_4'])):
@@ -530,7 +531,7 @@ class Data():
     
             # Calculate trade details
             trade_signal, pos, trade_number, \
-                trade_count = self._calculate_trades(
+                trade_count = cls._calculate_trades(
                     row=row, trade_signal=trade_signal, pos=pos, 
                     trade_number=trade_number, trade_count=trade_count)
     
@@ -541,8 +542,9 @@ class Data():
     
         return df
     
-                
-    def _create_signal_fields(self, column):
+    
+    @staticmethod            
+    def _create_signal_fields(column):
         """
         Initialize fields for trade signal calculations 
 
@@ -587,8 +589,8 @@ class Data():
         return start, pos, trade_signal, trade_number, trade_count
     
 
-    def _calculate_trades(self, row, trade_signal, pos, trade_number, 
-                         trade_count):
+    @staticmethod
+    def _calculate_trades(row, trade_signal, pos, trade_number, trade_count):
         """
         Calculate trade information by row. 
 
@@ -653,8 +655,9 @@ class Data():
         
         return trade_signal, pos, trade_number, trade_count
     
-                    
-    def _profit_data(self, df, position_size, slippage, commission):
+           
+    @classmethod         
+    def _profit_data(cls, df, position_size, slippage, commission):
         """
         Adds profit and drawdown fields to the OHLC data
 
@@ -679,18 +682,19 @@ class Data():
         """
         
         # Create pnl data
-        df = self._pnl_mtm(df=df, slippage=slippage, commission=commission)
+        df = cls._pnl_mtm(df=df, slippage=slippage, commission=commission)
         
         # Create perfect profit data
-        df = self._perfect_profit(df=df, position_size=position_size)
+        df = cls._perfect_profit(df=df, position_size=position_size)
         
         # Create max drawdown and max gain data
-        df = self._max_dd_gain(df=df)
+        df = cls._max_dd_gain(df=df)
             
         return df    
 
 
-    def _pnl_mtm(self, df, slippage, commission):
+    @classmethod
+    def _pnl_mtm(cls, df, slippage, commission):
         """
         Calculate pnl and mark to market columns
 
@@ -713,7 +717,7 @@ class Data():
         """
         
         # daily pnl
-        df = self._daily_pnl(df=df, slippage=slippage, commission=commission)
+        df = cls._daily_pnl(df=df, slippage=slippage, commission=commission)
     
         # total pnl
         df['total_pnl'] = np.array([0]*len(df['Close']), dtype=float)
@@ -725,7 +729,8 @@ class Data():
         return df
     
 
-    def _daily_pnl(self, df, slippage, commission):
+    @staticmethod
+    def _daily_pnl(df, slippage, commission):
         """
         Calculate daily PNL
 
@@ -800,8 +805,9 @@ class Data():
     
         return df
     
-        
-    def _perfect_profit(self, df, position_size):
+    
+    @staticmethod    
+    def _perfect_profit(df, position_size):
         """
         Theoretical optimal of buying every low and selling every high
 
@@ -834,7 +840,8 @@ class Data():
         return df
     
     
-    def _max_dd_gain(self, df):
+    @staticmethod
+    def _max_dd_gain(df):
         """
         Create maximum drawdown and maximum gain columns
 
@@ -1132,7 +1139,8 @@ class Data():
         return self
         
     
-    def _trade_data(self, df):
+    @staticmethod
+    def _trade_data(df):
         """
         Create dictionary of trades, count of the number of trades and lists / 
         dictionaries of winning and losing trades 
@@ -1202,7 +1210,8 @@ class Data():
                 trades_loss_dict, trades_loss_list)
     
     
-    def _trade_runs(self, input_trades_list, run_type='win'):
+    @staticmethod
+    def _trade_runs(input_trades_list, run_type='win'):
         """
         Produce data for winning or losing runs of trades
 
@@ -1329,7 +1338,8 @@ class Data():
             num_runs, av_run_count, av_run_pnl, pnl
        
 
-    def report_table(self, input_dict):
+    @classmethod
+    def report_table(cls, input_dict):
         """
         Print out backtesting performance results. 
         
@@ -1349,7 +1359,7 @@ class Data():
         
         # Format the performance dictionary so that the financial data is 
         # rounded to 2 decimal places and set values as strings
-        input_dict = self._dict_format(input_dict)
+        input_dict = cls._dict_format(input_dict)
         
         # Format header - centred and with lines above and below
         print('='*78)
@@ -1524,7 +1534,8 @@ class Data():
         print('='*78)
 
 
-    def _dict_format(self, input_dict):
+    @staticmethod
+    def _dict_format(input_dict):
         """
         Format the performance dictionary so that the financial data is 
         rounded to 2 decimal places and set values as strings
