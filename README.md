@@ -1,5 +1,5 @@
 # tradingsystems
-## End of day backtesting of technical trading rules
+## End of day backtesting of Technical trading rules
 
 &nbsp;  
 
