@@ -65,3 +65,16 @@ data.test_strategy_3MA(ticker='$STOXX50')
 A table of results is printed to the console
 
 ![performance_analysis](images/performance_analysis.png)
+
+&nbsp;
+
+The following volumes served as a reference for some of the methods and report design:
+* [Design, Testing, and Optimization of Trading Systems, Robert Pardo]
+* [Technical Traders Guide to Computer Analysis of the Futures Markets, Charles LeBeau & David W. Lucas]
+
+[Design, Testing, and Optimization of Trading Systems, Robert Pardo]:
+<https://www.amazon.co.uk/Testing-Optimization-Trading-Trader′s-Exchange/dp/0471554464/>  
+
+[Technical Traders Guide to Computer Analysis of the Futures Markets, Charles LeBeau & David W. Lucas]:
+<https://www.amazon.co.uk/Technical-Traders-Computer-Analysis-Futures/dp/1556234686/>
+
