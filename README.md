@@ -3,6 +3,12 @@
 
 &nbsp;  
 
+### *** Still under development ***
+#### Performance data requires additional fields populated
+#### Currently only 3MA and 4MA strategies implemented
+
+&nbsp;  
+
 ### Installation
 Install from PyPI:
 ```
