@@ -20,6 +20,7 @@ system_params_dict = {
     'df_slippage':0.05,
     'df_commission':0.00,
     'df_strategy':'3MA',
+    'df_format_pass':['efficiency_ratio', 'model_efficiency'],
     
     # lists of parameters for each of the trend flags calculated 
     # in fields function

@@ -5,11 +5,13 @@ import numpy as np
 import math
 import systems_params as sp
 import datetime as dt
-from technicalmethods.methods import Indicators
+from decimal import Decimal
 from operator import itemgetter
 from pandas.tseries.offsets import BDay
+from scipy.stats import skew, kurtosis
+from technicalmethods.methods import Indicators
 from yahoofinancials import YahooFinancials
-from decimal import Decimal
+
 
 
 class Data():
@@ -18,6 +20,9 @@ class Data():
         
         # Import dictionary of default parameters 
         self.df_dict = sp.system_params_dict
+        
+        # Extract longnames for Norgate Tickers
+        self._norgate_name_dict()
    
     
     def _refresh_params_default(self, **kwargs):
@@ -1099,6 +1104,12 @@ class Data():
         perf_dict['contract'] = contract
         perf_dict['strategy'] = strategy_label
         
+        # Set Ticker Longname
+        if self.source == 'norgate':
+            perf_dict['longname'] = self.norgate_name_dict[contract]
+        else:
+            perf_dict['longname'] = contract
+        
         # Slippage and commission in dollars
         perf_dict['slippage'] = self.slippage
         perf_dict['commission'] = self.commission
@@ -1220,7 +1231,7 @@ class Data():
     
         # Model Efficiency - ratio of net pnl to perfect profit
         perf_dict['model_efficiency'] = np.round(
-            perf_dict['net_pnl'] / perf_dict['perfect_profit'], 2)
+            perf_dict['net_pnl'] / perf_dict['perfect_profit'], 4)
         
         # Winning run data
         perf_dict['max_win_run_pnl'], perf_dict['max_win_run_count'], \
@@ -1275,6 +1286,23 @@ class Data():
         
         # Maximum Equity gain
         perf_dict['max_gain'] = np.round(max(df['max_gain']), 2)
+        
+        # Mean
+        perf_dict['close_mean'] = np.round(np.mean(df.Close), 2)
+      
+        # Variance
+        perf_dict['close_variance'] = np.round(np.var(df.Close), 2)        
+
+        # Skewness
+        perf_dict['close_skewness'] = np.round(skew(df.Close), 2)        
+
+        # Kurtosis
+        perf_dict['close_kurtosis'] = np.round(kurtosis(df.Close), 2)
+        
+        # Efficiency Ratio
+        perf_dict['efficiency_ratio'] = np.round(
+            abs(df.Close[-1] - df.Close[0]) 
+            / np.nansum(abs(df.Close-df.Close.shift())), 4)
         
         # Values still to be worked out
         placeholder_dict = {
@@ -1499,8 +1527,7 @@ class Data():
             num_runs, av_run_count, av_run_pnl, pnl
        
 
-    @classmethod
-    def report_table(cls, input_dict):
+    def report_table(self, input_dict):
         """
         Print out backtesting performance results. 
         
@@ -1520,7 +1547,7 @@ class Data():
         
         # Format the performance dictionary so that the financial data is 
         # rounded to 2 decimal places and set values as strings
-        input_dict = cls._dict_format(input_dict)
+        input_dict = self._dict_format(input_dict)
         
         # Format header - centred and with lines above and below
         print('='*78)
@@ -1528,10 +1555,13 @@ class Data():
         print('-'*78)
         
         # Contract traded on left and period covered on right
-        print('Contract Traded : {:<41}{} - {}'.format(
-            input_dict['contract'], 
+        print('Contract Ticker : {:<41}{} - {}'.format(
+            input_dict['contract'],
             input_dict['start_date'], 
             input_dict['end_date']))
+        
+        # Contract Longname
+        print('Contract Name   : {:>10}'.format(input_dict['longname']))
         
         # Strategy
         print('Strategy        : {:>10}'.format(input_dict['strategy']))
@@ -1692,11 +1722,34 @@ class Data():
             'Long Only Annual RoR.. %',
             input_dict['annual_long_only_ror']))
         
+        # Distribution statistics
+        print('-'*78)
+        print('{:^78}'.format('Data Distribution Statistics'))
+        print('-'*78)
+        
+        # Mean & Variance
+        print('Mean................. ${:>10}{:<6}{}{:>10}'.format(
+            input_dict['close_mean'],
+            '',
+            'Variance.............. $',
+            input_dict['close_variance']))
+       
+        # Skewness & Kurtosis
+        print('Skewness.............  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['close_skewness'],
+            '',
+            'Kurtosis..............  ',
+            input_dict['close_kurtosis']))
+       
+        # Efficiency Ratio
+        print('Efficiency Ratio.....  {:>10}'.format(
+            input_dict['efficiency_ratio']))
+        
+        # Closing line
         print('='*78)
 
 
-    @staticmethod
-    def _dict_format(input_dict):
+    def _dict_format(self, input_dict):
         """
         Format the performance dictionary so that the financial data is 
         rounded to 2 decimal places and set values as strings
@@ -1716,6 +1769,9 @@ class Data():
         # Create empty dictionary
         str_input_dict = {}
         
+        # List of parameters not to be formatted
+        format_pass = self.df_dict['df_format_pass']
+        
         # Set decimal format
         dp2 = Decimal(10) ** -2  # (equivalent to Decimal '0.01')
         
@@ -1723,7 +1779,7 @@ class Data():
         for key, value in input_dict.items():
             
             # If the value is a floating point number
-            if type(value) in (float, np.float64):
+            if type(value) in (float, np.float64) and key not in format_pass:
                 
                 # Apply the decimal formatting and convert to string
                 str_input_dict[key] = str(Decimal(value).quantize(dp2))
@@ -1735,3 +1791,20 @@ class Data():
         return str_input_dict
     
     
+    def _norgate_name_dict(self):
+        alldatabasenames = norgatedata.databases()
+        self.norgate_name_dict = {}
+        for database in alldatabasenames:
+            databasecontents = norgatedata.database(database)
+            for dicto in databasecontents:
+                key = dicto['symbol']
+                value = dicto['securityname']
+                if database == 'Continuous Futures':
+                    if '_CCB' in key:
+                        self.norgate_name_dict[key] = value
+                elif database == 'Futures':
+                    pass
+                else:
+                    self.norgate_name_dict[key] = value
+        
+        return self            
