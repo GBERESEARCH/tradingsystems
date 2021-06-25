@@ -1231,7 +1231,7 @@ class Data():
     
         # Model Efficiency - ratio of net pnl to perfect profit
         perf_dict['model_efficiency'] = np.round(
-            perf_dict['net_pnl'] / perf_dict['perfect_profit'], 4)
+            (perf_dict['net_pnl'] / perf_dict['perfect_profit']) * 100, 2)
         
         # Winning run data
         perf_dict['max_win_run_pnl'], perf_dict['max_win_run_count'], \
@@ -1301,8 +1301,8 @@ class Data():
         
         # Efficiency Ratio
         perf_dict['efficiency_ratio'] = np.round(
-            abs(df.Close[-1] - df.Close[0]) 
-            / np.nansum(abs(df.Close-df.Close.shift())), 4)
+            (abs(df.Close[-1] - df.Close[0]) 
+            / np.nansum(abs(df.Close-df.Close.shift()))) * 100, 2)
         
         # Values still to be worked out
         placeholder_dict = {
@@ -1597,7 +1597,7 @@ class Data():
         print('Av. Trade       :     ${:>10}{:>9}{}{:>11}'.format(
             input_dict['av_trade'],
             '',
-            'Model Efficiency :  ',
+            'Model Efficiency : %',
             input_dict['model_efficiency']))
         
         # Headers for # trades, Max, Min and Average with lines above and below
@@ -1742,7 +1742,7 @@ class Data():
             input_dict['close_kurtosis']))
        
         # Efficiency Ratio
-        print('Efficiency Ratio.....  {:>10}'.format(
+        print('Efficiency Ratio..... %{:>10}'.format(
             input_dict['efficiency_ratio']))
         
         # Closing line
