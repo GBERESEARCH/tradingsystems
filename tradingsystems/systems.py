@@ -12,8 +12,6 @@ from scipy.stats import skew, kurtosis
 from technicalmethods.methods import Indicators
 from yahoofinancials import YahooFinancials
 
-
-
 class Data():
     
     def __init__(self):
@@ -64,7 +62,7 @@ class Data():
             self, ticker=None, start_date=None, end_date=None, lookback=None, 
             short_ma=None, medium_ma=None, long_ma=None, ma_1=None, ma_2=None,
             ma_3=None, ma_4=None,position_size=None, source=None, 
-            slippage=None, commission=None, strategy=None):
+            slippage=None, commission=None, strategy=None, equity=None):
         """
         Run a backtest over the chosen strategy
 
@@ -88,7 +86,7 @@ class Data():
         long_ma : Int, optional
             The slowest of the 3 moving averages. The default is 18 periods.
         position_size : Int, optional
-            The number of units to trade. The default is 100.
+            The number of units to trade. The default is based on equity.
         source : Str, optional
             The data source to use, either 'norgate' or 'yahoo'. The default 
             is 'norgate'.
@@ -98,6 +96,8 @@ class Data():
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
+        equity : Float
+            The initial account equity level.    
 
         Returns
         -------
@@ -108,17 +108,17 @@ class Data():
                 
         # If data is not supplied as an input, take default values 
         (ticker, lookback, short_ma, medium_ma, long_ma, ma_1, ma_2, ma_3, 
-         ma_4, position_size, source, slippage, commission,
-         strategy) = itemgetter(
+         ma_4, source, slippage, commission,
+         strategy, equity) = itemgetter(
              'ticker', 'lookback', 'short_ma', 'medium_ma', 'long_ma', 'ma_1', 
-             'ma_2', 'ma_3', 'ma_4', 'position_size', 'source', 'slippage', 
-             'commission', 'strategy')(self._refresh_params_default(
+             'ma_2', 'ma_3', 'ma_4', 'source', 'slippage', 
+             'commission', 'strategy', 'equity')(self._refresh_params_default(
                  ticker=ticker, lookback=lookback, short_ma=short_ma, 
                  medium_ma=medium_ma, long_ma=long_ma, ma_1=ma_1, ma_2=ma_2, 
-                 ma_3=ma_3, ma_4=ma_4, position_size=position_size, 
-                 source=source, slippage=slippage, commission=commission, 
-                 strategy=strategy))
+                 ma_3=ma_3, ma_4=ma_4, source=source, slippage=slippage, 
+                 commission=commission, strategy=strategy, equity=equity))
         
+       
         # Set the start and end dates if not provided
         self._date_set(
             start_date=start_date, end_date=end_date, lookback=lookback)
@@ -128,18 +128,34 @@ class Data():
             ticker=ticker, start_date=self.start_date, end_date=self.end_date, 
             source=source)
 
+        # Set the position size
+        if df['Close'].iloc[0] < equity / 50:
+            position_size = np.round(
+                int((equity / df['Close'].iloc[0]) / 10)) * 10
+        else:
+            position_size = np.round(equity / df['Close'].iloc[0])
+            
+        self.position_size = position_size    
+
+        # Set the strategy labels
         df, strategy_label = self._strategy_selection(
             short_ma=short_ma, medium_ma=medium_ma, long_ma=long_ma, ma_1=ma_1, 
             ma_2=ma_2, ma_3=ma_3, ma_4=ma_4, df=df, 
             position_size=position_size, strategy=strategy)
-        
+                       
         # Calculate the trades and pnl for the strategy
         self.df = self._profit_data(df=df, position_size=position_size, 
-                                   slippage=slippage, commission=commission)
+                                    slippage=slippage, commission=commission, 
+                                    equity=equity)
+        
+        # Create monthly summary data
+        self.monthly_data = self._create_monthly_data(df=self.df, 
+                                                      equity=equity)
         
         # Create dictionary of performance data and print out results
         self._output_results(df=self.df, ticker=ticker, 
-                             strategy_label=strategy_label)
+                             strategy_label=strategy_label, 
+                             monthly_data=self.monthly_data)
 
         return self
         
@@ -167,7 +183,7 @@ class Data():
 
         """
         
-        if kwargs['strategy'] == '3MA':
+        if kwargs['strategy'] == '3ma':
             """
             Triple moving average strategy which is long if 
             short_ma > medium_ma > long_ma, short if 
@@ -188,7 +204,7 @@ class Data():
                 medium_ma=kwargs['medium_ma'], long_ma=kwargs['long_ma'], 
                 position_size=kwargs['position_size'])
             
-        elif kwargs['strategy'] == '4MA':
+        elif kwargs['strategy'] == '4ma':
             """
             Quad moving average strategy which is long if ma_1 > ma_2 
             and ma_3 > ma_4, short if ma_1 < ma_2 and ma_3 < ma_4
@@ -212,7 +228,7 @@ class Data():
                 position_size=kwargs['position_size']) 
             
         else:
-            raise ValueError("Please enter a vilid strategy")
+            raise ValueError("Please enter a valid strategy")
                 
         
         return df, strategy_label
@@ -221,7 +237,7 @@ class Data():
     def test_strategy_3MA(
             self, ticker=None, start_date=None, end_date=None, lookback=None, 
             short_ma=None, medium_ma=None, long_ma=None, position_size=None, 
-            source=None, slippage=None, commission=None):
+            source=None, slippage=None, commission=None, equity=None):
         """
         Run a backtest over the triple moving average strategy which is long 
         if short_ma > medium_ma > long_ma, short if short_ma < medium_ma <
@@ -257,6 +273,8 @@ class Data():
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
+        equity : Float
+            The initial account equity level.    
 
         Returns
         -------
@@ -267,14 +285,14 @@ class Data():
         
         # If data is not supplied as an input, take default values 
         (ticker, lookback, short_ma, medium_ma, long_ma, 
-         position_size, source, slippage, commission) = itemgetter(
+         position_size, source, slippage, commission, equity) = itemgetter(
              'ticker', 'lookback', 'short_ma', 'medium_ma', 'long_ma', 
-             'position_size', 'source', 'slippage', 'commission')(
+             'position_size', 'source', 'slippage', 'commission', 'equity')(
                  self._refresh_params_default(
                      ticker=ticker, lookback=lookback, short_ma=short_ma, 
                      medium_ma=medium_ma, long_ma=long_ma, 
                      position_size=position_size, source=source, 
-                     slippage=slippage, commission=commission))
+                     slippage=slippage, commission=commission, equity=equity))
         
         # Set the strategy label based on the 3 moving averages         
         strategy_label = str('Triple MA : '+str(short_ma)+'-'+str(medium_ma)+
@@ -300,7 +318,7 @@ class Data():
         
         # Create dictionary of performance data and print out results
         self._output_results(df=self.df, ticker=ticker, 
-                             strategy_label=strategy_label)
+                             strategy_label=strategy_label, equity=equity)
 
         return self
     
@@ -308,7 +326,7 @@ class Data():
     def test_strategy_4MA(
             self, ticker=None, start_date=None, end_date=None, lookback=None, 
             ma_1=None, ma_2=None, ma_3=None, ma_4=None, position_size=None, 
-            source=None, slippage=None, commission=None):
+            source=None, slippage=None, commission=None, equity=None):
         """
         Run a backtest over the quad moving average strategy which is long 
         if ma_1 > ma_2 and ma_3 > ma_4, short if ma_1 < ma_2 and ma_3 < ma_4
@@ -348,6 +366,8 @@ class Data():
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
+        equity : Float
+            The initial account equity level.   
 
         Returns
         -------
@@ -358,13 +378,14 @@ class Data():
         
         # If data is not supplied as an input, take default values 
         (ticker, lookback, ma_1, ma_2, ma_3, ma_4, position_size, 
-         source, slippage, commission) = itemgetter(
+         source, slippage, commission, equity) = itemgetter(
              'ticker', 'lookback', 'ma_1', 'ma_2', 'ma_3', 'ma_4', 
-             'position_size', 'source', 'slippage', 'commission')(
+             'position_size', 'source', 'slippage', 'commission', 'equity')(
                  self._refresh_params_default(
                      ticker=ticker, lookback=lookback, ma_1=ma_1, ma_2=ma_2, 
                      ma_3=ma_3, ma_4=ma_4, position_size=position_size, 
-                     source=source, slippage=slippage, commission=commission))
+                     source=source, slippage=slippage, commission=commission, 
+                     equity=equity))
         
         # Set the strategy label based on the 4 moving averages         
         strategy_label = str('Double MA Cross : '+str(ma_1)+'-'+str(ma_2)+
@@ -386,11 +407,12 @@ class Data():
         
         # Calculate the trades and pnl for the strategy
         self.df = self._profit_data(self.df, position_size=position_size, 
-                                   slippage=slippage, commission=commission)
+                                   slippage=slippage, commission=commission, 
+                                   equity=equity)
 
         # Create dictionary of performance data and print out results
         self._output_results(df=self.df, ticker=ticker, 
-                             strategy_label=strategy_label)
+                             strategy_label=strategy_label, equity=equity)
     
         return self
     
@@ -822,7 +844,7 @@ class Data():
     
            
     @classmethod         
-    def _profit_data(cls, df, position_size, slippage, commission):
+    def _profit_data(cls, df, position_size, slippage, commission, equity):
         """
         Adds profit and drawdown fields to the OHLC data
 
@@ -838,6 +860,8 @@ class Data():
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
+        equity : Float
+            The initial account equity level.    
 
         Returns
         -------
@@ -849,12 +873,12 @@ class Data():
         # Create pnl data
         df = cls._pnl_mtm(df=df, slippage=slippage, commission=commission)
         
+        # Create cumulative trade pnl, equity and drawdown data
+        df = cls._cumulative_trade_pnl_and_equity(df=df, equity=equity)
+        
         # Create perfect profit data
         df = cls._perfect_profit(df=df, position_size=position_size)
-        
-        # Create max drawdown and max gain data
-        df = cls._max_dd_gain(df=df)
-            
+           
         return df    
 
 
@@ -971,6 +995,209 @@ class Data():
         return df
     
     
+    @staticmethod
+    def _cumulative_trade_pnl_and_equity(df, equity):
+        """
+        Calculate cumulative per trade pnl and various account equity series
+
+        Parameters
+        ----------
+        df : DataFrame
+            The OHLC data and trades signals.
+        equity : Float
+            The initial account equity level.
+
+        Returns
+        -------
+        df : DataFrame
+            The input data with additional columns.
+
+        """
+        # Take the trade number and daily pnl series from df
+        trade_number = df['trade_number']
+        daily_pnl = df['daily_pnl']
+    
+        # Create arrays of zeros
+        cumulative_trade_pnl = np.array([0.0]*len(daily_pnl))
+        mtm_equity = np.array([0.0]*len(daily_pnl))
+        max_mtm_equity = np.array([0.0]*len(daily_pnl))
+        min_mtm_equity = np.array([0.0]*len(daily_pnl))
+        closed_equity = np.array([0.0]*len(daily_pnl))
+        max_closed_equity = np.array([0.0]*len(daily_pnl))
+        open_equity = np.array([0.0]*len(daily_pnl))
+        max_retracement = np.array([0.0]*len(daily_pnl))
+        ulcer_index_d_sq = np.array([0.0]*len(daily_pnl))
+        max_trade_pnl = np.array([0.0]*len(daily_pnl))
+        trade_pnl_drawback = np.array([0.0]*len(daily_pnl))
+        trade_pnl_drawback_perc = np.array([0.0]*len(daily_pnl))
+        
+        # Create max drawdown and max gain numpy arrays of zeros
+        max_drawdown = np.array([0.0]*len(daily_pnl))
+        max_drawdown_perc = np.array([0.0]*len(daily_pnl))
+        max_gain = np.array([0.0]*len(daily_pnl))
+        max_gain_perc = np.array([0.0]*len(daily_pnl))
+    
+        # Set the initial equity values
+        mtm_equity[0] = equity
+        max_mtm_equity[0] = equity
+        min_mtm_equity[0] = equity
+        closed_equity[0] = equity
+        max_closed_equity[0] = equity
+        
+        # For each row of data
+        for row in range(1, len(daily_pnl)):
+            
+            # The index location of the trade entry date
+            trade_first_row = df.index.get_loc(
+                df[trade_number==trade_number[row]].index[0])
+            
+            # The number of days since trade entry
+            trade_row_num = row - trade_first_row
+            
+            # The index location of the trade entry date
+            trade_last_row = df.index.get_loc(
+                df[trade_number==trade_number[row]].index[-1])
+    
+            # If there is a current trade
+            if trade_number[row] != 0:   
+                
+                # If it is the trade entry date 
+                if trade_row_num == trade_first_row:
+                    
+                    # Set cumulative trade pnl to the days pnl
+                    cumulative_trade_pnl[row] = daily_pnl[row]
+                    
+                    # The maximum of the initial days pnl and zero
+                    max_trade_pnl[row] = max(daily_pnl[row], 0)
+                    
+                    # Set the mtm equity to the previous days mtm equity plus
+                    # the days pnl
+                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
+                    
+                    # Set the closed equity to the previous days closed equity
+                    closed_equity[row] = closed_equity[row-1]
+    
+                # If it is the trade exit date
+                elif trade_last_row - row == 0:
+                    
+                    # Set cumulative trade pnl to the previous days cumulative 
+                    # pnl plus the days pnl
+                    cumulative_trade_pnl[row] = (cumulative_trade_pnl[row-1] 
+                                                 + daily_pnl[row]) 
+                    
+                    # The maximum of the current trade equity and the maximum 
+                    # trade equity of the previous day
+                    max_trade_pnl[row] = max(
+                        cumulative_trade_pnl[row], max_trade_pnl[row-1])
+                    
+                    # Set the mtm equity to the previous days mtm equity plus
+                    # the days pnl
+                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
+                    
+                    # Set the closed equity to the mtm equity
+                    closed_equity[row] = mtm_equity[row] 
+                
+                # For every other day in the trade 
+                else:
+                    # Set cumulative trade pnl to the previous days cumulative 
+                    # pnl plus the days pnl
+                    cumulative_trade_pnl[row] = (cumulative_trade_pnl[row-1] 
+                                                 + daily_pnl[row])
+                    
+                    # The maximum of the current trade equity and the maximum 
+                    # trade equity of the previous day
+                    max_trade_pnl[row] = max(
+                        cumulative_trade_pnl[row], max_trade_pnl[row-1])
+                    
+                    # Set the mtm equity to the previous days mtm equity plus
+                    # the days pnl
+                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
+                    
+                    # Set the closed equity to the previous days closed equity
+                    closed_equity[row] = closed_equity[row-1]
+
+            # If there is no curent trade 
+            else:
+                # Set cumulative trade pnl to zero
+                cumulative_trade_pnl[row] = 0
+                
+                # Set the mtm equity to the previous days mtm equity 
+                mtm_equity[row] = mtm_equity[row-1]
+                
+                # Set the closed equity to the previous days closed equity                    
+                closed_equity[row] = closed_equity[row-1]
+
+            # Maximum mtm equity to this point            
+            max_mtm_equity[row] = np.max(mtm_equity[:row+1])
+            
+            # Minimum mtm equity to this point            
+            min_mtm_equity[row] = np.min(mtm_equity[:row+1])
+            
+            # Maximum closed equity to this point
+            max_closed_equity[row] = np.max(closed_equity[:row+1])    
+            
+            # Current open equity
+            open_equity[row] = mtm_equity[row] - closed_equity[row]
+            
+            # Maximum of max closed equity and current mtm equity, used in 
+            # calculating Average Max Retracement
+            max_retracement[row] = max(
+                (max_closed_equity[row] - mtm_equity[row]), 0)
+            
+            # Maximum drawdown is the smallest value of the current cumulative 
+            # pnl less the max of all previous rows cumulative pnl and zero
+            max_drawdown[row] = mtm_equity[row] - max_mtm_equity[row]
+            
+            # Percentage Maximum drawdown
+            max_drawdown_perc[row] = ((mtm_equity[row] - max_mtm_equity[row]) 
+                                      / max_mtm_equity[row])            
+          
+            # Maximum gain is the largest value of the current cumulative 
+            # pnl less the min of all previous rows and zero
+            max_gain[row] = mtm_equity[row] - min_mtm_equity[row]
+        
+            # Percentage Maximum gain
+            max_gain_perc[row] = ((mtm_equity[row] - min_mtm_equity[row]) 
+                                  / min_mtm_equity[row])
+            
+            # Squared difference between max mtm equity and current mtm equity,
+            # used in calculating Ulcer Index
+            ulcer_index_d_sq[row] = (
+                (((max_mtm_equity[row] - mtm_equity[row]) 
+                 / max_mtm_equity[row]) * 100) ** 2)
+            
+            # The difference between the highest equity peak of the trade and 
+            # the current trade open equity
+            trade_pnl_drawback[row] = (max_trade_pnl[row] 
+                                       - cumulative_trade_pnl[row])
+            
+            # The percentage difference between the highest equity peak of the 
+            # trade and the current trade open equity
+            if max_trade_pnl[row] !=0:
+                trade_pnl_drawback_perc[row] = (
+                    (max_trade_pnl[row] - cumulative_trade_pnl[row]) 
+                    / max_trade_pnl[row])
+                       
+        df['cumulative_trade_pnl'] = cumulative_trade_pnl
+        df['max_trade_pnl'] = max_trade_pnl
+        df['trade_pnl_drawback'] = trade_pnl_drawback
+        df['trade_pnl_drawback_perc'] = trade_pnl_drawback_perc
+        df['mtm_equity'] = mtm_equity
+        df['closed_equity'] = closed_equity
+        df['open_equity'] = open_equity
+        df['max_closed_equity'] = max_closed_equity
+        df['max_retracement'] = max_retracement
+        df['max_mtm_equity'] = max_mtm_equity
+        df['min_mtm_equity'] = max_mtm_equity
+        df['max_dd'] = max_drawdown
+        df['max_dd_perc'] = max_drawdown_perc
+        df['max_gain'] = max_gain
+        df['max_gain_perc'] = max_gain_perc
+        df['ulcer_index_d_sq'] = ulcer_index_d_sq
+            
+        return df
+    
+    
     @staticmethod    
     def _perfect_profit(df, position_size):
         """
@@ -997,7 +1224,7 @@ class Data():
         
         # Create array of zeros
         df['total_perfect_profit'] = np.array(
-            [0]*len(df['Close']), dtype=float)
+            [0.0]*len(df['Close']), dtype=float)
         
         # Cumulative sum of daily perfect profit column
         df['total_perfect_profit'] = df['daily_perfect_profit'].cumsum()
@@ -1006,48 +1233,135 @@ class Data():
     
     
     @staticmethod
-    def _max_dd_gain(df):
+    def _create_monthly_data(df, equity):
         """
-        Create maximum drawdown and maximum gain columns
+        Create monthly summary data 
 
         Parameters
         ----------
         df : DataFrame
-            The OHLC data, trades signals and pnl.
+            The OHLC data.
+        equity : Int
+            The initial equity level.
 
         Returns
         -------
-        df : DataFrame
-            The input data with additional columns.
+        monthly_data : DataFrame
+            The monthly summary data.
 
         """
+        # Create empty DataFrame
+        monthly_data = pd.DataFrame()
         
-        # Create total pnl series from DataFrame column
-        total_pnl = df['total_pnl']
+        # Summarize daily pnl data by resampling to monthly
+        monthly_data['total_net_profit'] = df['daily_pnl'].resample('1M').sum()
+        monthly_data['average_net_profit'] = df[
+            'daily_pnl'].resample('1M').mean()
+        monthly_data['max_net_profit'] = df['daily_pnl'].resample('1M').max()
+        monthly_data['min_net_profit'] = df['daily_pnl'].resample('1M').min()
         
-        # Create max drawdown and max gain numpy arrays of zeros
-        max_draw = np.array([0]*len(total_pnl), dtype=float)
-        max_gain = np.array([0]*len(total_pnl), dtype=float)
-        
-        # For each row of pnl in the DataFrame
-        for row in range(1, len(total_pnl)):
+        # Create arrays of zeros to hold data
+        monthly_data['beginning_equity'] = np.array([0.0]*len(monthly_data))
+        monthly_data['additions'] = np.array([0.0]*len(monthly_data))
+        monthly_data['withdrawals'] = np.array([0.0]*len(monthly_data))    
+        monthly_data['end_equity'] = np.array([0.0]*len(monthly_data))
+        monthly_data['return'] = np.array([0.0]*len(monthly_data))
+        monthly_data['beginning_equity_raw'] = np.array([0.0]*len(monthly_data))
+        monthly_data['end_equity_raw'] = np.array([0.0]*len(monthly_data))
+        monthly_data['return_raw'] = np.array([0.0]*len(monthly_data))        
+        monthly_data['abs_loss'] = np.array([0.0]*len(monthly_data))
+        monthly_data['abs_loss_raw'] = np.array([0.0]*len(monthly_data))
+
+
+        # Set initial values        
+        monthly_data['additions'].iloc[0] = equity
+        monthly_data['end_equity'].iloc[0] = (
+            monthly_data['beginning_equity'].iloc[0]
+            + monthly_data['additions'].iloc[0]
+            + monthly_data['withdrawals'].iloc[0]
+            + monthly_data['total_net_profit'].iloc[0])
+        monthly_data['return'].iloc[0] = (
+            (monthly_data['total_net_profit'].iloc[0]) 
+            / (monthly_data['beginning_equity'].iloc[0]
+               + monthly_data['additions'].iloc[0]
+               + monthly_data['withdrawals'].iloc[0]))
+        monthly_data['beginning_equity_raw'].iloc[0] = equity
+        monthly_data['end_equity_raw'].iloc[0] = (
+            monthly_data['beginning_equity_raw'].iloc[0]
+            + monthly_data['total_net_profit'].iloc[0])
+        monthly_data['return_raw'].iloc[0] = (
+            (monthly_data['total_net_profit'].iloc[0]) 
+            / (monthly_data['beginning_equity_raw'].iloc[0]))
+    
+        # For each month
+        for row in range(1, len(monthly_data)):
             
-            # Maximum drawdown is the smallest value of the current cumulative 
-            # pnl less the max of all previous rows cumulative pnl and zero
-            max_draw[row] = min(total_pnl[row] - max(total_pnl.iloc[0:row]), 0)
+            # Beginning equity is the closing equity from the prior period
+            # Raw data keeps all the profits invested whereas the other resets 
+            # the equity balance each year
+            monthly_data['beginning_equity'][row] = monthly_data[
+                'end_equity'][row-1]
+            monthly_data['beginning_equity_raw'][row] = monthly_data[
+                'end_equity_raw'][row-1]
             
-            # Maximum gain is the largest value of the current cumulative 
-            # pnl less the min of all previous rows and zero
-            max_gain[row] = max(total_pnl[row] - min(total_pnl.iloc[0:row]), 0)
-        
-        # Set the DataFrame columns to the numpy arrays 
-        df['max_dd'] = max_draw
-        df['max_gain'] = max_gain
-        
-        return df        
+            # For each change in year
+            if monthly_data.index.year[row] != monthly_data.index.year[row-1]:
+                
+                # If the end of year equity level is less than the initial 
+                # level
+                if monthly_data['end_equity'][row-1] < equity:
+                    
+                    # Add back the difference to additions
+                    monthly_data['additions'][row] = (
+                        equity - monthly_data['end_equity'][row-1])
+                else:
+                    # Otherwise subtract from withdrawals
+                    monthly_data['withdrawals'][row] = (
+                        equity - monthly_data['end_equity'][row-1])
+            
+            # Ending equity is the beginning equity plus the sum of additions, 
+            # withdrawals and the net pnl over the period        
+            monthly_data['end_equity'][row] = (
+                monthly_data['beginning_equity'][row] 
+                + monthly_data['total_net_profit'][row]
+                + monthly_data['additions'][row]
+                + monthly_data['withdrawals'][row])
+            
+            # Ending equity raw is the beginning equity plus the net pnl over 
+            # the period
+            monthly_data['end_equity_raw'][row] = (
+                monthly_data['beginning_equity_raw'][row] 
+                + monthly_data['total_net_profit'][row])
+            
+            # Monthly return is the net pnl over the period divided by the 
+            # beginning equity plus the sum of additions and withdrawals 
+            monthly_data['return'][row] = (
+                (monthly_data['total_net_profit'][row]) 
+                / (monthly_data['beginning_equity'][row] 
+                   + monthly_data['additions'][row]
+                   + monthly_data['withdrawals'][row]))
+            
+            # Monthly return raw is the net pnl over the period divided by the 
+            # beginning equity raw
+            monthly_data['return_raw'][row] = (
+                (monthly_data['total_net_profit'][row]) 
+                / (monthly_data['beginning_equity_raw'][row]))
+    
+            # For use in Gain to Pain Ratio, absolute loss is the positive 
+            # value of the negative monthly returns
+            if monthly_data['return'][row] < 0:
+                monthly_data['abs_loss'][row] = -monthly_data['return'][row]
+            
+            # For use in Gain to Pain Ratio, absolute loss is the positive 
+            # value of the negative monthly returns
+            if monthly_data['return_raw'][row] < 0:
+                monthly_data['abs_loss_raw'][row] = -monthly_data[
+                    'return_raw'][row]
+                   
+        return monthly_data
    
         
-    def _output_results(self, df, ticker, strategy_label):
+    def _output_results(self, df, ticker, strategy_label, monthly_data):
         """
         Create dictionary of performance data and print out results of backtest
 
@@ -1069,7 +1383,8 @@ class Data():
         
         # Create performance data dictionary
         self.performance_data(df=df, contract=ticker, 
-                              strategy_label=strategy_label)
+                              strategy_label=strategy_label, 
+                              monthly_data=monthly_data)
         
         # Print out results
         self.report_table(input_dict=self.perf_dict)
@@ -1077,7 +1392,7 @@ class Data():
         return self
 
 
-    def performance_data(self, df, contract, strategy_label):
+    def performance_data(self, df, contract, strategy_label, monthly_data):
         """
         Create dictionary of performance data
 
@@ -1104,6 +1419,9 @@ class Data():
         perf_dict['contract'] = contract
         perf_dict['strategy'] = strategy_label
         
+        # Initial Equity
+        perf_dict['initial_equity'] = df['mtm_equity'].iloc[0]
+        
         # Set Ticker Longname
         if self.source == 'norgate':
             perf_dict['longname'] = self.norgate_name_dict[contract]
@@ -1120,7 +1438,7 @@ class Data():
                
         # Maximum margin required 
         perf_dict['margin'] = math.ceil(
-            max(df['position_mtm']) / 10000) * 10000
+            max(df['position_mtm']) / 100) * 100
         
         # Net Profit
         perf_dict['net_pnl'] = df['total_pnl'].iloc[-1]
@@ -1141,7 +1459,7 @@ class Data():
 
         # Total return 
         perf_dict['total_return_rate'] = (
-            perf_dict['net_pnl'] / perf_dict['margin'])
+            perf_dict['net_pnl'] / perf_dict['initial_equity'])
         
         # Annualized total return
         perf_dict['annualized_return'] = (
@@ -1161,7 +1479,7 @@ class Data():
         
         # Sum of all losses
         perf_dict['total_loss'] = np.round(sum(trades_loss_dict.values()), 2)
-    
+        
         # Percentage of winning trades    
         perf_dict['win_percent'] = int(
             np.round(perf_dict['num_wins'] / len(trades) * 100, 0))
@@ -1169,7 +1487,7 @@ class Data():
         # Percentage of losing trades
         perf_dict['loss_percent'] = int(
             np.round(perf_dict['num_losses'] / len(trades) * 100, 0))
-        
+      
         # Max winning trade
         perf_dict['max_win'] = np.round(max(trades_win_dict.values()), 2)
         
@@ -1252,17 +1570,31 @@ class Data():
         # Maximum Equity drawdown
         perf_dict['max_balance_drawback'] = np.round(min(df['max_dd']), 2)
         
+        # Maximum Equity drawdown in percentage terms
+        perf_dict['max_balance_drawback_perc'] = min(df['max_dd_perc']) * 100
+        
+        # Maximum Equity gain
+        perf_dict['max_gain'] = np.round(max(df['max_gain']), 2)
+        
+        # Maximum Equity gain in percentage terms
+        perf_dict['max_gain_perc'] = max(df['max_gain_perc']) * 100
+        
         # Reward / Risk ratio
         perf_dict['reward_risk'] = (perf_dict['net_pnl'] / 
                                     abs(perf_dict['max_balance_drawback']))
         
         # Annual Rate of Return
         perf_dict['annual_ror'] = (perf_dict['annualized_profit '] / 
-                                   perf_dict['margin']) * 100
+                                   perf_dict['initial_equity']) * 100
         
         # Profit Index
-        perf_dict['profit_index'] = (perf_dict['total_profit'] / 
+        perf_dict['profit_factor'] = (perf_dict['total_profit'] / 
                                      abs(perf_dict['total_loss']))
+        
+        # Mathematical Advantage
+        perf_dict['mathematical_advantage'] = np.round(
+            (perf_dict['num_wins'] / len(trades) * 100) * (
+                perf_dict['profit_factor'] + 1) - 100, 2)
         
         # Get the index of the first trade entry
         # Select just the rows of the first trade from the DataFrame
@@ -1282,16 +1614,19 @@ class Data():
         # Annual Rate of return of buy and hold
         perf_dict['annual_long_only_ror'] = (
             (perf_dict['long_only_pnl'] / perf_dict['return_period']) / 
-            perf_dict['margin']) * 100
+            perf_dict['initial_equity']) * 100
         
-        # Maximum Equity gain
-        perf_dict['max_gain'] = np.round(max(df['max_gain']), 2)
+        # Riskfree Rate
+        perf_dict['riskfree_rate'] = self.df_dict['df_riskfree']
         
         # Mean
         perf_dict['close_mean'] = np.round(np.mean(df.Close), 2)
       
         # Variance
-        perf_dict['close_variance'] = np.round(np.var(df.Close), 2)        
+        perf_dict['close_variance'] = np.round(np.var(df.Close), 2) 
+        
+        # Standard Deviation
+        perf_dict['close_std_dev'] = np.round(np.std(df.Close), 2)
 
         # Skewness
         perf_dict['close_skewness'] = np.round(skew(df.Close), 2)        
@@ -1304,12 +1639,45 @@ class Data():
             (abs(df.Close[-1] - df.Close[0]) 
             / np.nansum(abs(df.Close-df.Close.shift()))) * 100, 2)
         
+        # Sharpe Ratio
+        perf_dict['sharpe_ratio'] = ((
+            perf_dict['annual_ror'] - perf_dict['riskfree_rate']) 
+            / perf_dict['close_std_dev'])
+        
+        # Information Ratio
+        perf_dict['information_ratio'] = (
+            perf_dict['annual_ror'] / perf_dict['close_std_dev'])
+        
+        # Calmar Ratio
+        perf_dict['calmar_ratio'] = (
+            perf_dict['annual_ror'] 
+            / abs(perf_dict['max_balance_drawback_perc']))
+        
+        # Average Maximum Retracement
+        perf_dict['average_max_retracement'] = (
+            df['max_retracement'].mean())
+        
+        # Ulcer Index
+        perf_dict['ulcer_index'] = np.sqrt(
+            df['ulcer_index_d_sq'][df['ulcer_index_d_sq']!=0].mean())
+        
+        # Gain to Pain
+        perf_dict['gain_to_pain'] = np.round(
+            monthly_data['return'].sum() / monthly_data['abs_loss'].sum(), 2)
+        
+        # Maximum MTM Equity Profit
+        perf_dict['max_equity_profit'] = (
+            df['max_mtm_equity'].iloc[-1] - perf_dict['initial_equity'])
+        
+        # Largest open equity drawdown
+        perf_dict['open_equity_dd'] = (df['trade_pnl_drawback'].max())*(-1)
+
+        # Open equity
+        perf_dict['open_equity'] = df['open_equity'].iloc[-1]
+        
         # Values still to be worked out
         placeholder_dict = {
-            'beg_balance':0.00,
-            'open_equity':0.00,
-            'open_equity_dd':0.00,
-            'max_equity_profit':0.00,
+            
             'pessimistic_margin':0.00,
             'adj_pess_margin':0.00,
             'pess_month_avg':0.00,
@@ -1567,8 +1935,8 @@ class Data():
         print('Strategy        : {:>10}'.format(input_dict['strategy']))
         
         # Beginning balance on left
-        print('Beg. Balance    :     ${:>10}{:>9}{}{:>11}'.format(
-            input_dict['beg_balance'],
+        print('Initial Equity  :     ${:>10}{:>9}{}{:>11}'.format(
+            input_dict['initial_equity'],
             '',
             'Margin           : $',
             input_dict['margin']))
@@ -1594,12 +1962,12 @@ class Data():
             '',
             'Total Loss       : $',
             input_dict['total_loss']))
-        print('Av. Trade       :     ${:>10}{:>9}{}{:>11}'.format(
+        print('Av. Trade P/L   :     ${:>10}{:>9}{}{:>11}'.format(
             input_dict['av_trade'],
             '',
             'Model Efficiency : %',
             input_dict['model_efficiency']))
-        
+       
         # Headers for # trades, Max, Min and Average with lines above and below
         print('-'*78)
         print('{:>16}:{:^10}:{:^17}:{:^17}:{:^14}'.format(
@@ -1680,16 +2048,26 @@ class Data():
             'Max Equity Profit..... $',
             input_dict['max_equity_profit']))
         
+        # Max Percent drawdown / gain
+        print('Max Drawdown......... %{:>10}{:<6}{}{:>10}'.format(
+            input_dict['max_balance_drawback_perc'],
+            '',
+            'Max Gain.............. %',
+            input_dict['max_gain_perc']))        
+        
         # Reward / Risk
         print('Reward / Risk........  {:^16}{}{:>10}'.format(
             '{} TO 1'.format(input_dict['reward_risk']),
             'Annual Rate of Return. %',
             input_dict['annual_ror']))
         
-        # Profit Index
-        print('Profit Index.........  {:>10}'.format(
-            input_dict['profit_index']))
-    
+        # Profit Index and Mathematical Advantage
+        print('Profit Factor........  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['profit_factor'],
+            '',
+            'Mathematical Advantage %',
+            input_dict['mathematical_advantage']))
+            
         # Pessimistic Margin
         print('Pessimistic Margin...  {:>10}{:<6}{}{:>10}'.format(
             input_dict['pessimistic_margin'],
@@ -1704,23 +2082,51 @@ class Data():
             input_dict['pess_month_variance']))
         
         # Monthly P/L
-        print('Monthly Net PL Large.  {:>10}{:<6}{}{:>10}'.format(
+        print('Monthly Net PL Large. ${:>10}{:<6}{}{:>10}'.format(
             input_dict['month_net_pnl_large'],
             '',
-            'Monthly Net PL Small..  ',
+            'Monthly Net PL Small.. $',
             input_dict['month_net_pnl_small']))
         
-        print('Monthly Net PL Ave...  {:>10}{:<6}{}{:>10}'.format(
+        print('Monthly Net PL Ave... ${:>10}{:<6}{}{:>10}'.format(
             input_dict['month_net_pnl_av'],
             '',
             'Modified Pess. Margin.  ',
             input_dict['mod_pess_margin']))
         
-        print('Long Only Net PL.....  {:>10}{:<6}{}{:>10}'.format(
+        print('Long Only Net PL..... ${:>10}{:<6}{}{:>10}'.format(
             input_dict['long_only_pnl'],
             '',
             'Long Only Annual RoR.. %',
             input_dict['annual_long_only_ror']))
+    
+        
+        # Key Performance Measures
+        print('-'*78)
+        print('{:^78}'.format('Key Performance Measures'))
+        print('-'*78)
+        
+        # Sharpe Ratio & Information Ratio
+        print('Sharpe Ratio.........  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['sharpe_ratio'],
+            '',
+            'Information Ratio.....  ',
+            input_dict['information_ratio']))
+       
+        # Calmar Ratio & Average Max Retracement
+        print('Calmar Ratio.........  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['calmar_ratio'],
+            '',
+            'Av. Max Retracement... $',
+            input_dict['average_max_retracement']))
+       
+        # Ulcer Index & Gain to Pain
+        print('Ulcer Index..........  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['ulcer_index'],
+            '',
+            'Gain to Pain..........  ',
+            input_dict['gain_to_pain']))
+       
         
         # Distribution statistics
         print('-'*78)
@@ -1731,8 +2137,8 @@ class Data():
         print('Mean................. ${:>10}{:<6}{}{:>10}'.format(
             input_dict['close_mean'],
             '',
-            'Variance.............. $',
-            input_dict['close_variance']))
+            'Standard Deviation.... $',
+            input_dict['close_std_dev']))
        
         # Skewness & Kurtosis
         print('Skewness.............  {:>10}{:<6}{}{:>10}'.format(
@@ -1807,4 +2213,7 @@ class Data():
                 else:
                     self.norgate_name_dict[key] = value
         
-        return self            
+        return self    
+
+
+            
