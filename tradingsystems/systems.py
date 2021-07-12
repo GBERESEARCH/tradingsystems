@@ -1,10 +1,11 @@
 # Imports
-import norgatedata
-import pandas as pd
-import numpy as np
-import math
-import systems_params as sp
 import datetime as dt
+import math
+import norgatedata
+import numpy as np
+import pandas as pd
+import systems_params as sp
+import random
 from decimal import Decimal
 from operator import itemgetter
 from pandas.tseries.offsets import BDay
@@ -21,7 +22,17 @@ class Data():
         
         # Extract longnames for Norgate Tickers
         self._norgate_name_dict()
-   
+        
+        # Extract the Entry, Exit and Stop labels
+        self.entry_signal_labels = self.df_dict['df_entry_signal_labels']
+        self.exit_signal_labels = self.df_dict['df_exit_signal_labels']
+        self.stop_signal_labels = self.df_dict['df_stop_signal_labels']
+        
+        # Extract the Entry, Exit and Stop dictionaries of defaults
+        self.entry_signal_dict = self.df_dict['df_entry_signal_dict']
+        self.exit_signal_dict = self.df_dict['df_exit_signal_dict']
+        self.stop_signal_dict = self.df_dict['df_stop_signal_dict']        
+  
     
     def _refresh_params_default(self, **kwargs):
         """
@@ -57,12 +68,98 @@ class Data():
                       
         return kwargs    
    
+
+    def _refresh_signals_default(self, **kwargs):
+        """
+        Set parameters for use in various pricing functions
+        Parameters
+        ----------
+        **kwargs : Various
+                   Takes any of the arguments of the various methods 
+                   that use it to refresh data.
+        Returns
+        -------
+        Various
+            Runs methods to fix input parameters and reset defaults 
+            if no data provided
+        """
+ 
+        # For all the supplied arguments
+        for k, v in kwargs.items():
+            
+            # If a value for a parameter has not been provided
+            if v is None:
+                
+                # Check if the key is in the entry signal dict 
+                try:                    
+                    # Extract these from the df_combo_dict
+                    v = self.entry_signal_dict[str(
+                        self.entry_type)][str(k)]
+                    
+                    # Assign to input dictionary
+                    kwargs[k] = v
+
+                except:
+                    pass
+                        
+                # Check if the key is in the exit signal dict    
+                try:                    
+                    # Extract these from the exit signal dict
+                    v = self.exit_signal_dict[str(
+                        self.exit_type)][str(k)]
+                    
+                    # Assign to input dictionary
+                    kwargs[k] = v
+
+                except:
+                    pass    
+                    
+                # Check if the key is in the entry signal dict                
+                try:                    
+                    # Extract these from the df_combo_dict
+                    v = self.stop_signal_dict[str(
+                        self.stop_type)][str(k)]
+                    
+                    # Assign to input dictionary
+                    kwargs[k] = v
+
+                except:
+                   
+                    if v is None:
+                        # Otherwise set to the standard default 
+                        # value
+                        v = self.df_dict['df_'+str(k)]
+                        kwargs[k] = v
+            
+                # Now assign this to the object and input dictionary
+                self.__dict__[k] = v
+            
+            # If the parameter has been provided as an input, 
+            # assign this to the object
+            else:
+                self.__dict__[k] = v
+       
+                        
+        return kwargs            
     
-    def test_strategy(
+    
+    def test_strategy(self, **kwargs):
+        
+        try:
+            if kwargs['reversal']:
+                self.test_strategy_reversal(**kwargs)
+            else:
+                self.test_strategy_exit_stop(**kwargs)
+        except:
+            self.test_strategy_exit_stop(**kwargs)
+    
+    
+    def test_strategy_reversal(
             self, ticker=None, start_date=None, end_date=None, lookback=None, 
             short_ma=None, medium_ma=None, long_ma=None, ma_1=None, ma_2=None,
             ma_3=None, ma_4=None,position_size=None, source=None, 
-            slippage=None, commission=None, strategy=None, equity=None):
+            slippage=None, commission=None, strategy=None, equity=None, 
+            reversal=None):
         """
         Run a backtest over the chosen strategy
 
@@ -129,16 +226,10 @@ class Data():
             source=source)
 
         # Set the position size
-        if df['Close'].iloc[0] < equity / 50:
-            position_size = np.round(
-                int((equity / df['Close'].iloc[0]) / 10)) * 10
-        else:
-            position_size = np.round(equity / df['Close'].iloc[0])
-            
-        self.position_size = position_size    
+        position_size = self._position_size(df=df, equity=equity)    
 
         # Set the strategy labels
-        df, strategy_label = self._strategy_selection(
+        df, self.strategy_label = self._strategy_selection(
             short_ma=short_ma, medium_ma=medium_ma, long_ma=long_ma, ma_1=ma_1, 
             ma_2=ma_2, ma_3=ma_3, ma_4=ma_4, df=df, 
             position_size=position_size, strategy=strategy)
@@ -153,11 +244,765 @@ class Data():
                                                       equity=equity)
         
         # Create dictionary of performance data and print out results
-        self._output_results(df=self.df, ticker=ticker, 
-                             strategy_label=strategy_label, 
-                             monthly_data=self.monthly_data)
+        self._output_results(df=self.df, monthly_data=self.monthly_data, 
+                             reversal=True)
 
         return self
+    
+    
+    def test_strategy_exit_stop(
+            self, ticker=None, start_date=None, end_date=None, lookback=None, 
+            ma1=None, ma2=None, ma3=None, ma4=None, simple_ma=None, 
+            position_size=None, pos_size_fixed=None, source=None, 
+            slippage=None, commission=None, strategy=None, entry_type=None, 
+            exit_type=None, stop_type=None, entry_period=None, 
+            exit_period=None, stop_period=None,
+            entry_oversold=None, entry_overbought=None, 
+            exit_oversold=None, exit_overbought=None, 
+            entry_threshold=None, exit_threshold=None,
+            entry_acceleration_factor=None, exit_acceleration_factor=None, 
+            sip_price=None, equity=None, exit_amount=None, stop_amount=None, 
+            reversal=None):
+        """
+        Run a backtest over the chosen strategy
+
+        Parameters
+        ----------
+        ticker : Str, optional
+            Underlying to test. The default '$SPX'.
+        start_date : Str, optional
+            Date to begin backtest. Format is YYYY-MM-DD. The default is 500 
+            business days prior (circa 2 years).
+        end_date : Str, optional
+            Date to end backtest. Format is YYYY-MM-DD. The default is the 
+            last business day.
+        lookback : Int, optional
+            Number of business days to use for the backtest. The default is 500 
+            business days (circa 2 years).
+        short_ma : Int, optional
+            The fastest of the 3 moving averages. The default is 4 periods.
+        medium_ma : Int, optional
+            The middle of the 3 moving averages. The default is 9 periods.
+        long_ma : Int, optional
+            The slowest of the 3 moving averages. The default is 18 periods.
+        position_size : Int, optional
+            The number of units to trade. The default is based on equity.
+        source : Str, optional
+            The data source to use, either 'norgate' or 'yahoo'. The default 
+            is 'norgate'.
+        slippage : Float, optional
+            The amount of slippage to apply to traded prices. The default is 
+            $0.05 per unit.
+        commission : Float, optional
+            The amount of commission charge to apply to each trade. The 
+            default is $0.00.
+        equity : Float
+            The initial account equity level.   
+        exit_amount : Float
+            The dollar exit amount
+        stop_amount : Float
+            The dollar stop amount    
+
+        Returns
+        -------
+        Results
+            Prints out performance data for the strategy.
+
+        """
+        
+        if reversal:
+            strategy = self.df_dict['df_strategy']
+        else:
+            (entry_type, exit_type, stop_type) = itemgetter(
+                'entry_type', 'exit_type', 
+                'stop_type')(self._refresh_params_default(
+                    entry_type=entry_type, exit_type=exit_type, 
+                    stop_type=stop_type))
+        
+        
+        # Basic parameters
+        # If data is not supplied as an input, take default values 
+        (ticker, lookback, simple_ma, position_size, pos_size_fixed, source, 
+         slippage, commission, strategy, equity) = itemgetter(
+             'ticker', 'lookback', 'simple_ma', 'position_size', 
+             'pos_size_fixed', 'source', 'slippage', 'commission', 'strategy',
+             'equity')(self._refresh_params_default(
+                 ticker=ticker, lookback=lookback, simple_ma=simple_ma, 
+                 position_size=position_size, pos_size_fixed=pos_size_fixed, 
+                 source=source, slippage=slippage, commission=commission, 
+                 strategy=strategy, equity=equity))
+                
+        # Strategy specific parameters         
+        # If data is not supplied as an input, take default values 
+        (ma1, ma2, ma3, ma4, entry_period, exit_period, stop_period,
+         entry_oversold, entry_overbought, exit_oversold,
+         exit_overbought, entry_threshold, exit_threshold,
+         entry_acceleration_factor, exit_acceleration_factor, sip_price, 
+         exit_amount, stop_amount) = itemgetter(
+             'ma1', 'ma2', 'ma3', 'ma4', 'entry_period', 'exit_period', 
+             'stop_period', 'entry_oversold', 'entry_overbought', 
+             'exit_oversold', 'exit_overbought', 'entry_threshold', 
+             'exit_threshold', 'entry_acceleration_factor', 
+             'exit_acceleration_factor', 'sip_price', 'exit_amount', \
+                 'stop_amount')(self._refresh_signals_default(
+                 ma1=ma1, ma2=ma2, ma3=ma3, ma4=ma4, entry_period=entry_period, 
+                 exit_period=exit_period, stop_period=stop_period, 
+                 entry_oversold=entry_oversold, 
+                 entry_overbought=entry_overbought, 
+                 exit_oversold=exit_oversold, 
+                 exit_overbought=exit_overbought, 
+                 entry_threshold=entry_threshold, 
+                 exit_threshold=exit_threshold, 
+                 entry_acceleration_factor=entry_acceleration_factor, 
+                 exit_acceleration_factor=exit_acceleration_factor,
+                 sip_price=sip_price, 
+                 exit_amount=exit_amount, stop_amount=stop_amount))
+       
+        # Set the start and end dates if not provided
+        self._date_set(
+            start_date=start_date, end_date=end_date, lookback=self.lookback)
+        
+        # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
+        df = self.create_base_data(
+            ticker=self.ticker, start_date=self.start_date, 
+            end_date=self.end_date, source=self.source)
+
+        # Extract SPX data for Beta calculation
+        self.spx = norgatedata.price_timeseries(
+            symbol='$SPX', start_date=self.start_date, end_date=self.end_date, 
+            format='pandas-dataframe')
+            
+        # Set the position size
+        position_size = self._position_size(df=df, equity=self.equity)    
+
+        # Set the strategy labels
+        self.entry_label, self.exit_label, \
+            self.stop_label = self._strategy_labels(
+            df=df, ma1=self.ma1, ma2=self.ma2, ma3=self.ma3, ma4=self.ma4, 
+            entry_period=self.entry_period, exit_period=self.exit_period, 
+            stop_period=self.stop_period, entry_oversold=self.entry_oversold, 
+            exit_oversold=self.exit_oversold, 
+            entry_overbought=self.entry_overbought, 
+            exit_overbought=self.exit_overbought, 
+            entry_threshold=self.entry_threshold, 
+            exit_threshold=self.exit_threshold, simple_ma=self.simple_ma, 
+            position_size=self.position_size, 
+            entry_type=self.entry_type, exit_type=self.exit_type, 
+            stop_type=self.stop_type, exit_amount=self.exit_amount,
+            stop_amount=self.stop_amount, 
+            entry_acceleration_factor=self.entry_acceleration_factor, 
+            exit_acceleration_factor=self.exit_acceleration_factor,
+            sip_price=self.sip_price)
+        
+        # Generate initial trade data
+        df, self.start = self._raw_signal_data(
+            df=df, entry_type=self.entry_type, position_size=position_size, 
+            exit_amount=self.exit_amount, ma1=self.ma1, ma2=self.ma2, 
+            ma3=self.ma3, ma4=self.ma4, entry_period=self.entry_period, 
+            entry_oversold=self.entry_oversold, 
+            entry_overbought=self.entry_overbought, 
+            entry_threshold=self.entry_threshold,
+            simple_ma=self.simple_ma, 
+            entry_acceleration_factor=self.entry_acceleration_factor)
+        
+        # Create exit and stop signals
+        df = self._exit_and_stop_signals(
+            df=df, position_size=position_size, exit_type=self.exit_type, 
+            stop_type=self.stop_type, exit_amount=self.exit_amount, 
+            exit_period=self.exit_period, stop_amount=self.stop_amount, 
+            stop_period=self.stop_period, exit_threshold=self.exit_threshold, 
+            exit_oversold=self.exit_oversold, 
+            exit_overbought=self.exit_overbought,
+            exit_acceleration_factor=self.exit_acceleration_factor, 
+            sip_price=self.sip_price)
+        
+        # Combine signals
+        df['combined_signal'] = self._signal_combine(
+            df=df, start=self.start, raw_trade_signal=df['raw_td_signal'], 
+            end_of_day_position=df['raw_end_of_day_position'], 
+            trade_number=df['raw_td_number'], 
+            exit_signal=df['exit_signal'], 
+            stop_signal=df['stop_signal'])
+        
+        # Create trade and position data
+        df['start_of_day_position'], df['trade_signal'], \
+            df['position'] = self._positions_and_trade_actions(
+                df=df, signal=df['combined_signal'], start=self.start, 
+                position_size=self.position_size)
+            
+        df['trade_number'] = self._trade_numbers(
+            df=df, end_of_day_position=df['position'], 
+            start=self.start)    
+                
+        # Calculate the trades and pnl for the strategy
+        self.df = self._profit_data(df=df, position_size=self.position_size, 
+                                    slippage=self.slippage, 
+                                    commission=self.commission, 
+                                    equity=self.equity)
+        
+        # Create monthly summary data
+        self.monthly_data = self._create_monthly_data(
+            df=self.df, equity=self.equity)
+        
+        # Create dictionary of performance data and print out results
+        self._output_results(df=self.df, monthly_data=self.monthly_data, 
+                             reversal=False)
+
+        return self
+
+
+    def _raw_signal_data(
+            self, df, entry_type, position_size, exit_amount, ma1, ma2, ma3, 
+            ma4, entry_period, entry_oversold, entry_overbought, 
+            entry_threshold, simple_ma, entry_acceleration_factor):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        entry_type : TYPE
+            DESCRIPTION.
+        position_size : TYPE
+            DESCRIPTION.
+        exit_amount : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+
+        """
+        # Generate entry signals
+        df, start, df['raw_td_signal'] = self._entry_signal(
+            df=df, entry_type=entry_type, ma1=ma1, ma2=ma2, ma3=ma3, ma4=ma4,
+            entry_period=entry_period, entry_oversold=entry_oversold, 
+            entry_overbought=entry_overbought, entry_threshold=entry_threshold, 
+            simple_ma=simple_ma, 
+            entry_acceleration_factor=entry_acceleration_factor)
+
+        # Calculate initial position info        
+        df['raw_start_of_day_position'], df['raw_td_action'], \
+            df['raw_end_of_day_position'] = self._positions_and_trade_actions(
+                df=df, signal=df['raw_td_signal'], start=start, 
+                position_size=position_size)
+        
+        # Generate trade numbers    
+        df['raw_td_number'] = self._trade_numbers(
+            df=df, end_of_day_position=df['raw_end_of_day_position'], 
+            start=start)
+
+        # Generate initial trade prices
+        df['raw_td_entry_price'], df['raw_td_exit_price'], \
+            df['raw_td_high_price'], df['raw_td_low_price'], \
+                df['raw_td_close_high_price'], \
+                    df['raw_td_close_low_price'] = self._trade_prices(
+                        df=df, trade_number=df['raw_td_number'])
+            
+        return df, start    
+
+
+    @classmethod
+    def _exit_and_stop_signals(
+            cls, df, position_size, exit_type, exit_amount, exit_period, 
+            stop_type, stop_amount, stop_period, exit_threshold, exit_oversold, 
+            exit_overbought, exit_acceleration_factor, sip_price):
+                
+        # Generate the exit signals
+        df, df['exit_signal'] = cls._exit_signal(
+            df=df, position_size=position_size, exit_amount=exit_amount, 
+            exit_type=exit_type, exit_period=exit_period, 
+            exit_threshold=exit_threshold, trade_number=df['raw_td_number'], 
+            end_of_day_position=df['raw_end_of_day_position'], 
+            exit_oversold=exit_oversold, exit_overbought=exit_overbought,
+            exit_acceleration_factor=exit_acceleration_factor, 
+            sip_price=sip_price)    
+       
+        # Generate the stop signals
+        df, df['stop_signal'] = cls._stop_signal(
+            df=df, stop_type=stop_type, stop_period=stop_period, 
+            stop_amount=stop_amount, position_size=position_size, 
+            trade_number=df['raw_td_number'], 
+            end_of_day_position=df['raw_end_of_day_position'])
+                    
+        return df    
+
+    
+    @staticmethod
+    def _positions_and_trade_actions(df, signal, start, position_size):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        signal : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        position_size : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        start_of_day_position : TYPE
+            DESCRIPTION.
+        trade_action : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+
+        """
+        # Extract the trade signal from the OHLC Data
+        eod_trade_signal = np.array(signal)
+ 
+        # Create empty arrays to store data       
+        start_of_day_position = np.array([0]*len(df))
+        trade_action = np.array([0]*len(df))
+        end_of_day_position = np.array([0]*len(df))    
+       
+        # For each valid row in the data
+        for row in range(start + 1, len(df)):
+            
+            # The start of day position is equal to the close of day position
+            # of the previous day
+            start_of_day_position[row] = end_of_day_position[row-1]
+            
+            # The trade action is the previous days trade signal multiplied by 
+            # the position size
+            trade_action[row] = eod_trade_signal[row-1] * position_size
+            
+            # The end of day position is the start of day position plus any 
+            # trade action
+            end_of_day_position[row] = (start_of_day_position[row] 
+                                        + trade_action[row])    
+        
+        return start_of_day_position, trade_action, end_of_day_position 
+    
+
+    @staticmethod
+    def _trade_numbers(df, end_of_day_position, start):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        trade_number : TYPE
+            DESCRIPTION.
+
+        """
+        # Extract the end of day position from the OHLC Data
+        end_of_day_position = np.array(end_of_day_position)    
+    
+        # Create numpy array of zeros to store trade numbers
+        trade_number = np.array([0]*len(df))
+        
+        # Set initial trade count to zero
+        trade_count = 0
+    
+        for row in range(start + 1, len(df)):        
+            # If today's position is zero
+            if end_of_day_position[row] == 0:
+                
+                # If yesterday's position is zero
+                if end_of_day_position[row - 1] == 0:
+                    
+                    # There is no open trade so set trade number to zero
+                    trade_number[row] = 0
+                
+                # If yesterday's position is not zero
+                else:
+                    
+                    # Set the trade number to the current trade count
+                    trade_number[row] = trade_count
+            
+            # If today's position is the same as yesterday        
+            elif end_of_day_position[row] == end_of_day_position[row - 1]:
+                
+                # Set the trade number to yesterdays trade number
+                trade_number[row] = trade_number[row - 1]
+            
+            # If today's position is non-zero and different from yesterday    
+            else:
+                
+                # Increase trade count by one for a new trade
+                trade_count += 1
+                
+                # Set the trade number to the current trade count
+                trade_number[row] = trade_count
+        
+        return trade_number
+
+
+    @staticmethod
+    def _trade_prices(df, trade_number):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        trade_entry_price : TYPE
+            DESCRIPTION.
+        trade_exit_price : TYPE
+            DESCRIPTION.
+        trade_high_price : TYPE
+            DESCRIPTION.
+        trade_low_price : TYPE
+            DESCRIPTION.
+        trade_close_high_price : TYPE
+            DESCRIPTION.
+        trade_close_low_price : TYPE
+            DESCRIPTION.
+
+        """        
+        # Initialize price arrays with zeroes
+        trade_entry_price = np.array([0.0]*len(df))
+        trade_exit_price = np.array([0.0]*len(df))
+        trade_high_price = np.array([0.0]*len(df))
+        trade_low_price = np.array([0.0]*len(df))
+        trade_close_high_price = np.array([0.0]*len(df)) 
+        trade_close_low_price = np.array([0.0]*len(df))
+        
+        # For each row in the DataFrame
+        for row in range(len(df)):
+            
+            # Get the currenct trade number
+            trade_num = trade_number[row]
+            
+            # Get the index location of the trade entry date 
+            trade_first_row = df.index.get_loc(
+                df[trade_number==trade_num].index[0])
+            
+            # Get the number of days since trade entry
+            trade_row_num = row - trade_first_row
+            
+            # If there is no current trade, set the fields to zero
+            if trade_num == 0:
+                trade_entry_price[row] = 0
+                trade_high_price[row] = 0
+                trade_low_price[row] = 0 
+            
+            # Otherwise
+            else:
+                # Set the trade entry price to the opening price on the first 
+                # trade date
+                trade_entry_price[row] = df[
+                    trade_number==trade_num].iloc[0]['Open']
+                
+                # Set the trade exit price to the opening price on the last 
+                # trade date
+                trade_exit_price[row] = df[
+                    trade_number==trade_num].iloc[-1]['Open']
+                
+                # Calculate the maximum close price during the trade
+                trade_close_high_price[row] = max(
+                    df[trade_number==trade_num].iloc[
+                        0:trade_row_num+1]['Close'])
+                
+                # Calculate the minimum close price during the trade
+                trade_close_low_price[row] = min(
+                    df[trade_number==trade_num].iloc[
+                        0:trade_row_num+1]['Close'])
+                
+                # Calculate the maximum high price during the trade
+                trade_high_price[row] = max(
+                    df[trade_number==trade_num].iloc[
+                        0:trade_row_num+1]['High'])
+                
+                # Calculate the minimum low price during the trade
+                trade_low_price[row] = min(
+                    df[trade_number==trade_num].iloc[0:trade_row_num+1]['Low'])
+    
+        return trade_entry_price, trade_exit_price, trade_high_price, \
+            trade_low_price, trade_close_high_price, trade_close_low_price
+        
+
+    @staticmethod    
+    def _position_values(
+            df, trade_entry_price, end_of_day_position, trade_high_price, 
+            trade_close_high_price, trade_low_price, trade_close_low_price, 
+            trade_number):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trade_entry_price : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        trade_high_price : TYPE
+            DESCRIPTION.
+        trade_close_high_price : TYPE
+            DESCRIPTION.
+        trade_low_price : TYPE
+            DESCRIPTION.
+        trade_close_low_price : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        initial_position_value : TYPE
+            DESCRIPTION.
+        current_position_value : TYPE
+            DESCRIPTION.
+        max_trade_position_value : TYPE
+            DESCRIPTION.
+        max_trade_close_position_value : TYPE
+            DESCRIPTION.
+        min_trade_position_value : TYPE
+            DESCRIPTION.
+        min_trade_close_position_value : TYPE
+            DESCRIPTION.
+
+        """
+
+        initial_position_value = trade_entry_price * end_of_day_position
+        current_position_value = df['Close'] * end_of_day_position
+        max_trade_position_value = trade_high_price * end_of_day_position
+        max_trade_close_position_value = (trade_close_high_price 
+                                          * end_of_day_position)
+        min_trade_position_value = trade_low_price * end_of_day_position
+        min_trade_close_position_value = (trade_close_low_price 
+                                          * end_of_day_position)
+        
+        for row in range(1, len(df)):
+            if (end_of_day_position[row] == 0) and (
+                    trade_number[row] == trade_number[row-1]):
+                
+                initial_position_value[row] = initial_position_value[row-1]
+                current_position_value[row] = (df['Open'][row] 
+                                               * end_of_day_position[row-1])
+                max_trade_position_value[row] = max_trade_position_value[row-1]
+                max_trade_close_position_value[
+                    row] = max_trade_close_position_value[row-1]
+                min_trade_position_value[row] = min_trade_position_value[row-1]
+                min_trade_close_position_value[
+                    row] = min_trade_close_position_value[row-1]
+           
+        return initial_position_value, current_position_value, \
+            max_trade_position_value, max_trade_close_position_value, \
+                min_trade_position_value, min_trade_close_position_value
+
+
+    @staticmethod
+    def _pnl_targets(
+            df, dollar_amount, position_size, trade_number, 
+            end_of_day_position, trade_entry_price, trade_high_price, 
+            trade_low_price, trade_close_high_price, trade_close_low_price):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        exit_amount : TYPE
+            DESCRIPTION.
+        position_size : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        trade_entry_price : TYPE
+            DESCRIPTION.
+        trade_high_price : TYPE
+            DESCRIPTION.
+        trade_low_price : TYPE
+            DESCRIPTION.
+        trade_close_high_price : TYPE
+            DESCRIPTION.
+        trade_close_low_price : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        profit_target : TYPE
+            DESCRIPTION.
+        initial_dollar_loss : TYPE
+            DESCRIPTION.
+        trailing_close : TYPE
+            DESCRIPTION.
+        trailing_high_low : TYPE
+            DESCRIPTION.
+
+        """
+
+        trade_target = np.round(dollar_amount / position_size, 2)
+
+        profit_target = np.array([0.0]*len(df))
+        initial_dollar_loss = np.array([0.0]*len(df))
+        trailing_close = np.array([0.0]*len(df))
+        trailing_high_low = np.array([0.0]*len(df))
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    profit_target[row] = (trade_entry_price[row] 
+                                          + trade_target)
+                    initial_dollar_loss[row] = (
+                        trade_entry_price[row] - trade_target)
+                    trailing_close[row] = (
+                        trade_close_high_price[row] - trade_target)
+                    trailing_high_low[row] = (
+                        trade_high_price[row] - trade_target)
+                else:
+                    profit_target[row] = (trade_entry_price[row] 
+                                          - trade_target)
+                    initial_dollar_loss[row] = (
+                        trade_entry_price[row] + trade_target)
+                    trailing_close[row] = (
+                        trade_close_low_price[row] + trade_target)
+                    
+                    trailing_high_low[row] = (
+                        trade_low_price[row] + trade_target)
+        
+        return profit_target, initial_dollar_loss, trailing_close, \
+            trailing_high_low            
+
+
+    @staticmethod
+    def _signal_combine(
+            df, start, raw_trade_signal, end_of_day_position, trade_number, 
+            exit_signal, stop_signal):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        raw_trade_signal : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        exit_signals : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        combined_signal : TYPE
+            DESCRIPTION.
+
+        """
+        combined_signal = np.array([0.0]*len(df))
+        all_signals = pd.concat(
+            [raw_trade_signal, exit_signal, stop_signal], axis=1)
+        flag = True
+        for row in range(start, len(df)):        
+            trade_num = trade_number[row]
+            trade_last_row = df.index.get_loc(
+                df[trade_number==trade_num].index[-1])
+            
+            if ((raw_trade_signal[row] != 0) and (
+                    end_of_day_position[row] == 0)): 
+                combined_signal[row] = raw_trade_signal[row]
+            
+            else:
+                if trade_number[row] != 0:
+                    if flag:
+                        if end_of_day_position[row] > 0:
+                        
+                            combined_signal[row] = int(
+                                min(all_signals.iloc[row]))
+                        
+                        elif end_of_day_position[row] < 0:
+                            
+                            combined_signal[row] = int(
+                                max(all_signals.iloc[row]))        
+                        
+                        else:
+                            combined_signal[row] = raw_trade_signal[row]            
+                    
+                        if (combined_signal[row] != 0):
+                            flag = False
+        
+                    elif (trade_number[row] != trade_number[row-1]):
+                        
+                        combined_signal[row] = raw_trade_signal[row]
+                        flag=True
+                    
+                    elif row == trade_last_row and abs(
+                            raw_trade_signal[row]) > 1:
+                        
+                        combined_signal[row] = int(
+                            raw_trade_signal[row] / 2)
+                        flag=True
+                    
+                    else:
+                        combined_signal[row] = 0
+   
+        return combined_signal
+
+
+    def _position_size(self, df, equity):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        equity : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        position_size : TYPE
+            DESCRIPTION.
+
+        """
+        # Set the position size to the number of shares that can be bought with 
+        # the initial equity 
+        
+        # Set the number of units to use 75% of starting equity
+        units = (equity / df['Close'].iloc[0]) * 0.75
+        spx_units = (equity / self.spx['Close'].iloc[0]) * 0.75
+        
+        # If the number of units would be greater than 50 then make the 
+        # position size a multiple of 10        
+        if df['Close'].iloc[0] < equity / 50:
+            position_size = math.floor(
+                int(units / 10)) * 10
+        
+        # Otherwise take the most units that can be afforded 
+        else:
+            position_size = math.floor(units)
+                
+        self.spx_position_size = spx_units
+        self.position_size = position_size
+        
+        return position_size
         
 
     def _strategy_selection(self, **kwargs):
@@ -229,193 +1074,247 @@ class Data():
             
         else:
             raise ValueError("Please enter a valid strategy")
-                
-        
+       
         return df, strategy_label
-        
-
-    def test_strategy_3MA(
-            self, ticker=None, start_date=None, end_date=None, lookback=None, 
-            short_ma=None, medium_ma=None, long_ma=None, position_size=None, 
-            source=None, slippage=None, commission=None, equity=None):
+    
+    
+    def _strategy_labels(self, **kwargs):
         """
-        Run a backtest over the triple moving average strategy which is long 
-        if short_ma > medium_ma > long_ma, short if short_ma < medium_ma <
-        long_ma and flat otherwise
+        Create label and price signal for chosen strategy
 
         Parameters
         ----------
-        ticker : Str, optional
-            Underlying to test. The default '$SPX'.
-        start_date : Str, optional
-            Date to begin backtest. Format is YYYY-MM-DD. The default is 500 
-            business days prior (circa 2 years).
-        end_date : Str, optional
-            Date to end backtest. Format is YYYY-MM-DD. The default is the 
-            last business day.
-        lookback : Int, optional
-            Number of business days to use for the backtest. The default is 500 
-            business days (circa 2 years).
-        short_ma : Int, optional
-            The fastest of the 3 moving averages. The default is 4 periods.
-        medium_ma : Int, optional
-            The middle of the 3 moving averages. The default is 9 periods.
-        long_ma : Int, optional
-            The slowest of the 3 moving averages. The default is 18 periods.
-        position_size : Int, optional
-            The number of units to trade. The default is 100.
-        source : Str, optional
-            The data source to use, either 'norgate' or 'yahoo'. The default 
-            is 'norgate'.
-        slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
-        commission : Float, optional
-            The amount of commission charge to apply to each trade. The 
-            default is $0.00.
-        equity : Float
-            The initial account equity level.    
+        **kwargs : Various
+            The input parameters necessary for the chosen strategy.
+
+        Raises
+        ------
+        ValueError
+            If no correct strategy is chosen.
 
         Returns
         -------
-        Results
-            Prints out performance data for the strategy.
+        df : DataFrame
+            Price data and trading signals.
+        strategy_label : Str
+            The longname of the strategy.
 
         """
         
-        # If data is not supplied as an input, take default values 
-        (ticker, lookback, short_ma, medium_ma, long_ma, 
-         position_size, source, slippage, commission, equity) = itemgetter(
-             'ticker', 'lookback', 'short_ma', 'medium_ma', 'long_ma', 
-             'position_size', 'source', 'slippage', 'commission', 'equity')(
-                 self._refresh_params_default(
-                     ticker=ticker, lookback=lookback, short_ma=short_ma, 
-                     medium_ma=medium_ma, long_ma=long_ma, 
-                     position_size=position_size, source=source, 
-                     slippage=slippage, commission=commission, equity=equity))
+        # Simple or Exponential Moving Average label
+        if kwargs['simple_ma']:
+            ma_type_label = 'S'
+        else:
+            ma_type_label = 'E'
         
-        # Set the strategy label based on the 3 moving averages         
-        strategy_label = str('Triple MA : '+str(short_ma)+'-'+str(medium_ma)+
-                       '-'+str(long_ma))
         
-        # Set the start and end dates if not provided
-        self._date_set(
-            start_date=start_date, end_date=end_date, lookback=lookback)
+        # Entry labels
         
-        # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
-        self.df = self.create_base_data(
-            ticker=ticker, start_date=self.start_date, end_date=self.end_date, 
-            source=source)
+        # Double Moving Average Crossover
+        if kwargs['entry_type'] == '2ma':
+            
+            # Set the entry label
+            entry_label = (str(kwargs['ma1'])
+                           +'-, '
+                           +str(kwargs['ma2'])
+                           +'-day :'
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']][0]
+                           +ma_type_label
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']][1])
         
-        # Update the DataFrame with the Triple moving average signal
-        self.df = self._triple_ma_signal(
-            self.df, short_ma=short_ma, medium_ma=medium_ma, long_ma=long_ma, 
-            position_size=position_size)
         
-        # Calculate the trades and pnl for the strategy
-        self.df = self._profit_data(self.df, position_size=position_size, 
-                                   slippage=slippage, commission=commission)
+        # Triple Moving Average Crossover                                
+        elif kwargs['entry_type'] == '3ma':
+            
+            # Set the entry label
+            entry_label = (str(kwargs['ma1'])
+                           +'-, '
+                           +str(kwargs['ma2'])
+                           +'-, '
+                           +str(kwargs['ma3'])
+                           +'-day : '
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']][0]
+                           +ma_type_label
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']][1])
         
-        # Create dictionary of performance data and print out results
-        self._output_results(df=self.df, ticker=ticker, 
-                             strategy_label=strategy_label, equity=equity)
+        
+        # Quad Moving Average Crossover    
+        elif kwargs['entry_type'] == '4ma':
+            
+            # Set the entry label
+            entry_label = (str(kwargs['ma1'])
+                           +'-, '
+                           +str(kwargs['ma2'])
+                           +'-, '
+                           +str(kwargs['ma3'])
+                           +'-, '
+                           +str(kwargs['ma4'])
+                           +'-day : '
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']][0]
+                           +ma_type_label
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']][1])    
+        
+        
+        # Parabolic SAR 
+        elif kwargs['entry_type'] == 'sar':
+            
+            # Set the entry label
+            entry_label = (str(kwargs['entry_period'])
+                          +'-day '
+                          +str(np.round(kwargs[
+                              'entry_acceleration_factor'] * 100, 1))
+                          +'% AF '
+                          +self.df_dict['df_entry_signal_labels'][
+                              kwargs['entry_type']])
+            
+        
+        # Channel Breakout 
+        elif kwargs['entry_type'] == 'channel_breakout':
+            
+            # Set the entry label
+            entry_label = (str(kwargs['entry_period'])
+                           +'-day : '
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']])
+        
+        
+        # Stochastic Crossover, Stochastic Pop, Stochastic Over Under and 
+        # Relative Strength Index   
+        elif kwargs['entry_type'] in ['stoch_cross', 'stoch_over_under', 
+                                      'stoch_pop', 'rsi']:
+            
+            # Set the entry label
+            entry_label = (str(kwargs['entry_period'])
+                           +'-day '
+                           +str(kwargs['entry_overbought'])
+                           +'-'
+                           +str(kwargs['entry_oversold'])
+                           +' : '
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']])
+        
+        
+        # Commodity Channel Index, Momentum and Volatility
+        elif kwargs['entry_type'] in ['cci', 'momentum', 'volatility']:
+            
+            # Set the entry label
+            entry_label = (str(kwargs['entry_period'])
+                           +'-day '
+                           +str(int(kwargs['entry_threshold']*100))
+                           +'% : '
+                           +self.df_dict['df_entry_signal_labels'][
+                               kwargs['entry_type']])
+        
+        # Otherwise raise an error
+        else:
+            raise ValueError("Please enter a valid entry type")
+            
+        
+        # Exit labels
+        
+        # Parabolic SAR
+        if kwargs['exit_type'] == 'sar':
+            
+            # Set the exit label         
+            exit_label = (str(kwargs['exit_period'])
+                          +'-day '
+                          +str(np.round(kwargs[
+                              'exit_acceleration_factor'] * 100, 1))
+                          +'% AF '
+                          +self.df_dict['df_exit_signal_labels'][
+                              kwargs['exit_type']])
+        
+        
+        # Stochastic Crossover and Trailing Relative Strength Index
+        elif kwargs['exit_type'] in ['stoch_cross', 'rsi_trail']:
+            
+            # Set the exit label         
+            exit_label = (str(kwargs['exit_period'])
+                           +'-day '
+                           +str(kwargs['exit_overbought'])
+                           +'-'
+                           +str(kwargs['exit_oversold'])
+                           +' : '
+                           +self.df_dict['df_exit_signal_labels'][
+                               kwargs['exit_type']]) 
+        
+        
+        # Volatility
+        elif kwargs['exit_type'] in ['volatility']:
+            
+            # Set the exit label         
+            exit_label = (str(kwargs['exit_period'])
+                          +'-day '
+                          +str(int(kwargs['exit_threshold']*100))
+                          +'% : '
+                          +self.df_dict['df_exit_signal_labels'][
+                              kwargs['exit_type']])
+            
+            
+        # Trailing Stop and Profit Target
+        elif kwargs['exit_type'] in ['trailing_stop', 'profit_target']:
+            
+            # Set the exit label         
+            exit_label = ('$'
+                          +str(int(kwargs['exit_amount']))
+                          +' '                          
+                          +self.df_dict['df_exit_signal_labels'][
+                               kwargs['exit_type']])
+        
 
-        return self
-    
-    
-    def test_strategy_4MA(
-            self, ticker=None, start_date=None, end_date=None, lookback=None, 
-            ma_1=None, ma_2=None, ma_3=None, ma_4=None, position_size=None, 
-            source=None, slippage=None, commission=None, equity=None):
-        """
-        Run a backtest over the quad moving average strategy which is long 
-        if ma_1 > ma_2 and ma_3 > ma_4, short if ma_1 < ma_2 and ma_3 < ma_4
-        and flat otherwise
-
-        Parameters
-        ----------
-        ticker : Str, optional
-            Underlying to test. The default '$SPX'.
-        start_date : Str, optional
-            Date to begin backtest. Format is YYYY-MM-DD. The default is 500 
-            business days prior (circa 2 years).
-        end_date : Str, optional
-            Date to end backtest. Format is YYYY-MM-DD. The default is the 
-            last business day.
-        lookback : Int, optional
-            Number of business days to use for the backtest. The default is 500 
-            business days (circa 2 years).
-        ma_1 : Int, optional
-            The fastest of the 4 moving averages. The default is 5 periods.
-        ma_2 : Int, optional
-            The 2nd fastest of the 4 moving averages. The default is 12 
-            periods.
-        ma_3 : Int, optional
-            The second slowest of the 4 moving averages. The default is 20 
-            periods.
-        ma_4 : Int, optional
-            The slowest of the 4 moving averages. The default is 40 periods.
-        position_size : Int, optional
-            The number of units to trade. The default is 100.
-        source : Str, optional
-            The data source to use, either 'norgate' or 'yahoo'. The default 
-            is 'norgate'.
-        slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
-        commission : Float, optional
-            The amount of commission charge to apply to each trade. The 
-            default is $0.00.
-        equity : Float
-            The initial account equity level.   
-
-        Returns
-        -------
-        Results
-            Prints out performance data for the strategy.
-
-        """
+        # Support/Resistance, Key Reversal Day and n-Day Range
+        elif kwargs['exit_type'] in ['sup_res', 'key_reversal', 'nday_range']:
+            
+            # Set the exit label         
+            exit_label = (str(kwargs['exit_period'])
+                          +'-day '
+                          +self.df_dict['df_exit_signal_labels'][
+                              kwargs['exit_type']])
         
-        # If data is not supplied as an input, take default values 
-        (ticker, lookback, ma_1, ma_2, ma_3, ma_4, position_size, 
-         source, slippage, commission, equity) = itemgetter(
-             'ticker', 'lookback', 'ma_1', 'ma_2', 'ma_3', 'ma_4', 
-             'position_size', 'source', 'slippage', 'commission', 'equity')(
-                 self._refresh_params_default(
-                     ticker=ticker, lookback=lookback, ma_1=ma_1, ma_2=ma_2, 
-                     ma_3=ma_3, ma_4=ma_4, position_size=position_size, 
-                     source=source, slippage=slippage, commission=commission, 
-                     equity=equity))
         
-        # Set the strategy label based on the 4 moving averages         
-        strategy_label = str('Double MA Cross : '+str(ma_1)+'-'+str(ma_2)+
-                       ' '+str(ma_3)+'-'+str(ma_4))
+        # Otherwise raise an error
+        else:
+            raise ValueError("Please enter a valid exit type")
+        
+        
+        # Stop labels
+        
+        # Initial Dollar, Breakeven, Trailing Close and Trailing High Low        
+        if kwargs['stop_type'] in ['initial_dollar', 'breakeven', 
+                                   'trail_close', 'trail_high_low']:    
 
-        # Set the start and end dates if not provided
-        self._date_set(
-            start_date=start_date, end_date=end_date, lookback=lookback)
-        
-        # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
-        self.df = self.create_base_data(
-            ticker=ticker, start_date=self.start_date, end_date=self.end_date, 
-            source=source)
-        
-        # Update the DataFrame with the Quad moving average signal
-        self.df = self._quad_ma_signal(
-            self.df, ma_1=ma_1, ma_2=ma_2, ma_3=ma_3, ma_4=ma_4, 
-            position_size=position_size)    
-        
-        # Calculate the trades and pnl for the strategy
-        self.df = self._profit_data(self.df, position_size=position_size, 
-                                   slippage=slippage, commission=commission, 
-                                   equity=equity)
+            # Set the stop label         
+            stop_label = ('$'
+                          +str(int(kwargs['stop_amount']))
+                          +' '                          
+                          +self.df_dict['df_stop_signal_labels'][
+                               kwargs['stop_type']])           
 
-        # Create dictionary of performance data and print out results
-        self._output_results(df=self.df, ticker=ticker, 
-                             strategy_label=strategy_label, equity=equity)
-    
-        return self
-    
+
+        # Support / Resistance and Immediate Profit
+        elif kwargs['stop_type'] in ['sup_res', 'immediate_profit']:    
+
+            # Set the stop label         
+            stop_label = (str(kwargs['stop_period'])
+                          +'-day '
+                          +self.df_dict['df_stop_signal_labels'][
+                              kwargs['stop_type']])
+
+
+        # Otherwise raise an error
+        else:
+            raise ValueError("Please enter a valid stop type")
+
+        #self.strategy_label = entry_label
+       
+        return entry_label, exit_label, stop_label
+            
     
     def _date_set(self, start_date, end_date, lookback):
         """
@@ -553,7 +1452,2096 @@ class Data():
         
         return df
 
+
+    @classmethod
+    def _entry_signal(
+            cls, df=None, entry_type=None, ma1=None, ma2=None, ma3=None, 
+            ma4=None, simple_ma=None, entry_period=None, entry_oversold=None, 
+            entry_overbought=None, entry_threshold=None, 
+            entry_acceleration_factor=None):
+        
+        if entry_type == '2ma':
+            df, start, signal = cls._entry_double_ma_crossover(
+                df=df, ma1=ma1, ma2=ma2, simple_ma=simple_ma)
+        
+        elif entry_type == '3ma':
+            df, start, signal = cls._entry_triple_ma_crossover(
+                df, ma1=ma1, ma2=ma2, ma3=ma3, simple_ma=simple_ma)
+        
+        elif entry_type == '4ma':
+            df, start, signal = cls._entry_quad_ma_crossover(
+                df, ma1=ma1, ma2=ma2, ma3=ma3, ma4=ma4, simple_ma=simple_ma)        
+        
+        elif entry_type == 'sar':
+            df, start, signal = cls._entry_parabolic_sar(
+                df=df, acceleration_factor=entry_acceleration_factor)
+        
+        elif entry_type == 'channel_breakout':
+            df, start, signal = cls._entry_channel_breakout(
+                df, time_period=entry_period)
+        
+        elif entry_type == 'stoch_cross':
+            df, start, signal = cls._entry_stochastic_crossover(
+                df, time_period=entry_period, oversold=entry_oversold, 
+                overbought=entry_overbought)
+        
+        elif entry_type == 'stoch_over_under':
+            df, start, signal = cls._entry_stochastic_over_under(
+                df, time_period=entry_period, oversold=entry_oversold, 
+                overbought=entry_overbought)
+        
+        elif entry_type == 'stoch_pop':
+            df, start, signal = cls._entry_stochastic_pop(
+                df, time_period=entry_period, oversold=entry_oversold, 
+                overbought=entry_overbought)
+        
+        elif entry_type == 'rsi':
+            df, start, signal = cls._entry_rsi(
+                df, time_period=entry_period, oversold=entry_oversold, 
+                overbought=entry_overbought)
+        
+        elif entry_type == 'cci':
+            df, start, signal = cls._entry_commodity_channel_index(
+                df, time_period=entry_period, threshold=entry_threshold)
+        
+        elif entry_type == 'momentum':
+            df, start, signal = cls._entry_momentum(
+                df, time_period=entry_period, threshold=entry_threshold)
+        
+        elif entry_type == 'volatility':
+            df, start, signal = cls._entry_volatility(
+                df, time_period=entry_period, threshold=entry_threshold)
+            
+        return df, start, signal    
+
+
+    @classmethod
+    def _exit_signal(cls, df, exit_type=None, exit_period=None, 
+                     exit_amount=None, exit_threshold=None,
+                     position_size=None, trade_number=None, 
+                     end_of_day_position=None, exit_oversold=None, 
+                     exit_overbought=None, exit_acceleration_factor=None, 
+                     sip_price=None):
+        
+        # Generate profit targets / trailing stops        
+        df['exit_profit_target'], df['exit_initial_dollar_loss'], \
+            df['exit_trailing_close'], \
+                df['exit_trailing_high_low'] = cls._pnl_targets(
+                    df=df, dollar_amount=exit_amount, 
+                    position_size=position_size,
+                    trade_number=df['raw_td_number'], 
+                    end_of_day_position=df['raw_end_of_day_position'], 
+                    trade_entry_price=df['raw_td_entry_price'], 
+                    trade_high_price=df['raw_td_high_price'], 
+                    trade_close_high_price=df['raw_td_close_high_price'], 
+                    trade_low_price=df['raw_td_low_price'], 
+                    trade_close_low_price=df['raw_td_close_low_price']) 
+        
+        if exit_type == 'sar':
+            df, exit = cls._exit_parabolic_sar(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position, 
+                time_period=exit_period, 
+                acceleration_factor=exit_acceleration_factor, 
+                sip_price=sip_price)
+        
+        elif exit_type == 'sup_res':
+            df, exit = cls._exit_support_resistance(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position,
+                time_period=exit_period)        
+        
+        elif exit_type == 'rsi_trail':
+            df, exit = cls._exit_rsi_trail(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position, 
+                time_period=exit_period, oversold=exit_oversold, 
+                overbought=exit_overbought)        
+        
+        elif exit_type == 'key_reversal':
+            df, exit = cls._exit_key_reversal(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position,
+                time_period=exit_period)        
+        
+        elif exit_type == 'trailing_stop':
+            df, exit = cls._exit_dollar(
+                df=df, trigger_value=df['exit_trailing_close'], 
+                exit_level='trail_close', trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)        
+        
+        elif exit_type == 'volatility':
+            df, exit = cls._exit_volatility(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position,
+                time_period=exit_period, threshold=exit_threshold)        
+        
+        elif exit_type == 'stoch_cross':
+            df, exit = cls._exit_stochastic_crossover(
+                df=df, time_period=exit_period, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)        
+        
+        elif exit_type == 'profit_target':
+            df, exit = cls._exit_dollar(
+                df=df, trigger_value=df['exit_profit_target'], 
+                exit_level='profit_target', trade_number=trade_number, 
+                end_of_day_position=end_of_day_position) 
+        
+        elif exit_type == 'nday_range':    
+            df, exit = cls._exit_nday_range(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position, 
+                time_period=exit_period)    
+        
+        elif exit_type == 'random':
+            df, exit = cls._exit_random(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)
+
+        return df, exit
+
+
+    @classmethod
+    def _stop_signal(
+            cls, df, stop_type=None, stop_period=None, stop_amount=None, 
+            position_size=None, trade_number=None, end_of_day_position=None):
+        
+        # Generate profit targets / trailing stops        
+        df['stop_profit_target'], df['stop_initial_dollar_loss'], \
+            df['stop_trailing_close'], \
+                df['trailing_high_low'] = cls._pnl_targets(
+                    df=df, dollar_amount=stop_amount, 
+                    position_size=position_size,
+                    trade_number=df['raw_td_number'], 
+                    end_of_day_position=df['raw_end_of_day_position'], 
+                    trade_entry_price=df['raw_td_entry_price'], 
+                    trade_high_price=df['raw_td_high_price'], 
+                    trade_close_high_price=df['raw_td_close_high_price'], 
+                    trade_low_price=df['raw_td_low_price'], 
+                    trade_close_low_price=df['raw_td_close_low_price'])        
+
+        
+        if stop_type == 'initial_dollar':
+            df, stop = cls._exit_dollar(
+                df=df, trigger_value=df['stop_initial_dollar_loss'], 
+                exit_level='initial', trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)    
+        
+        elif stop_type == 'sup_res':
+            df, stop = cls._exit_support_resistance(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position,
+                time_period=stop_period)
+        
+        elif stop_type == 'immediate_profit':
+            df, stop = cls._exit_immediate_profit(
+                df=df, trade_number=trade_number, 
+                end_of_day_position=end_of_day_position,
+                time_period=stop_period)
+        
+        elif stop_type == 'breakeven':
+            df, stop = cls._exit_dollar(
+                df=df, trigger_value=df['stop_profit_target'], 
+                exit_level='breakeven', trade_number=trade_number, 
+                end_of_day_position=end_of_day_position, 
+                trade_high_price=df['raw_td_high_price'], 
+                trade_low_price=df['raw_td_low_price'])
+        
+        elif stop_type == 'trail_close':
+            df, stop = cls._exit_dollar(
+                df=df, trigger_value=df['stop_trailing_close'], 
+                exit_level='trail_close', trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)
+        
+        elif stop_type == 'trail_high_low':
+            df, stop = cls._exit_dollar(
+                df=df, trigger_value=df['trailing_high_low'], 
+                exit_level='trail_high_low', trade_number=trade_number, 
+                end_of_day_position=end_of_day_position) 
+                    
+        return df, stop
     
+
+    @staticmethod
+    def _entry_double_ma_crossover(df, ma1, ma2, simple_ma):
+        """
+        Entry signal for Moving Average Crossover strategy
+
+        Parameters
+        ----------
+        df : DataFrame
+            The OHLC data
+        ma1 : Int
+            The faster moving average. The default is 9.
+        ma2 : Int
+            The slower moving average. The default is 18.
+
+        Returns
+        -------
+        df : DataFrame
+            The OHLC data with additional columns.
+        start : Int
+            The first valid date row to calculate from.
+
+        """
+        if simple_ma:
+            # Create short and long simple moving averages  
+            ma_1 = np.array(df['Close'].rolling(ma1).mean())
+            ma_2 = np.array(df['Close'].rolling(ma2).mean())
+        
+        else:
+            ma_1 = Indicators.EMA(input_series=df['Close'], time_period=ma1)
+            ma_2 = Indicators.EMA(input_series=df['Close'], time_period=ma2)
+        
+        # Create start point from first valid number
+        start = np.where(~np.isnan(ma_2))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(ma_2))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(ma_2))
+        
+        # for each row in the DataFrame after the longest MA has started
+        for row in range(start, len(ma_2)):
+            
+            # If the short MA crosses above the long MA 
+            if ma_1[row] > ma_2[row] and ma_1[row-1] < ma_2[row-1]:
+                   
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+                
+            # If the short MA crosses below the long MA 
+            elif ma_1[row] < ma_2[row] and ma_1[row-1] > ma_2[row-1]:
+    
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+    
+            # Otherwise, take no action
+            else:        
+                position_signal[row] = position_signal[row-1]
+                trade_signal[row] = 0                
+    
+        df['ma_1'] = ma_1
+        df['ma_2'] = ma_2
+        
+        return df, start, trade_signal
+
+
+    @staticmethod
+    def _entry_triple_ma_crossover(df, ma1, ma2, ma3, simple_ma):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        ma1 : TYPE, optional
+            DESCRIPTION. The default is 4.
+        ma2 : TYPE, optional
+            DESCRIPTION. The default is 9.
+        ma3 : TYPE, optional
+            DESCRIPTION. The default is 18.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+
+        """
+        # Create fast, medium and slow simple moving averages  
+        if simple_ma:
+            ma_1 = np.array(df['Close'].rolling(ma1).mean())
+            ma_2 = np.array(df['Close'].rolling(ma2).mean())
+            ma_3 = np.array(df['Close'].rolling(ma3).mean())
+
+        else:
+            ma_1 = Indicators.EMA(input_series=df['Close'], time_period=ma1)
+            ma_2 = Indicators.EMA(input_series=df['Close'], time_period=ma2)
+            ma_3 = Indicators.EMA(input_series=df['Close'], time_period=ma3)
+            
+        # Create start point from first valid number
+        start = np.where(~np.isnan(ma_3))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(ma_3))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(ma_3))
+        
+        # for each row in the DataFrame after the longest MA has started
+        for row in range(start, len(ma_3)):
+            
+            # If the medium MA is above the slow MA 
+            if ma_2[row] > ma_3[row]:
+                
+                # If the fast MA crosses above the medium MA
+                if (ma_1[row] > ma_2[row] 
+                    and ma_1[row-1] < ma_2[row-1]):
+                    
+                    # Set the position signal to long
+                    position_signal[row] = 1
+                    
+                    # Signal to go long
+                    trade_signal[row] = 1 - position_signal[row-1]
+                
+                # If the fast MA crosses below the medium MA
+                elif (ma_1[row] < ma_2[row] 
+                      and ma_1[row-1] > ma_2[row-1]):
+                    
+                    # If currently long
+                    if position_signal[row-1] == 1:
+    
+                        # Set the position signal to flat
+                        position_signal[row] = 0                    
+                        
+                        # Signal to close out long
+                        trade_signal[row] = -1
+                          
+                # Otherwise, take no action
+                else:                
+                    trade_signal[row] = 0
+                    position_signal[row] = position_signal[row-1]
+            
+            # If the medium MA is below the slow MA
+            else:
+                
+                # If the fast MA crosses below the medium MA
+                if (ma_1[row] < ma_2[row] 
+                    and ma_1[row-1] > ma_2[row-1]):
+                    
+                    # Set the position signal to short
+                    position_signal[row] = -1
+    
+                    # Signal to go short
+                    trade_signal[row] = -1 - position_signal[row-1] 
+                
+                # If the fast MA crosses above the medium MA
+                elif (ma_1[row] > ma_2[row] 
+                    and ma_1[row-1] < ma_2[row-1]):
+                    
+                    # If currently short
+                    if position_signal[row-1] == -1:
+                        
+                        # Set the position to flat
+                        position_signal[row] = 0
+    
+                        # Signal to close out short
+                        trade_signal[row] = 1
+              
+                # Otherwise, take no action
+                else:                
+                    trade_signal[row] = 0
+                    position_signal[row] = position_signal[row-1]                
+    
+        # Assign the series to the OHLC data 
+        df['ma_1'] = ma_1
+        df['ma_2'] = ma_2
+        df['ma_3'] = ma_3
+    
+        return df, start, trade_signal
+    
+    
+    @staticmethod
+    def _entry_quad_ma_crossover(df, ma1, ma2, ma3, ma4, simple_ma):
+       
+        """
+        Create trading signals for Quad MA strategy
+    
+        Parameters
+        ----------
+        df : DataFrame
+            The OHLC data.
+        ma1 : Int, optional
+            The fastest of the 4 moving averages. The default is 5 periods.
+        ma2 : Int, optional
+            The 2nd fastest of the 4 moving averages. The default is 12 
+            periods.
+        ma3 : Int, optional
+            The second slowest of the 4 moving averages. The default is 20 
+            periods.
+        ma4 : Int, optional
+            The slowest of the 4 moving averages. The default is 40 periods.
+       
+        Returns
+        -------
+        ma_1 : Series
+            The series of the fastest of the 4 moving averages.
+        ma_2 : Series
+            The series of the 2nd fastest of the 4 moving averages.
+        ma_3 : Series
+            The series of second slowest of the 4 moving averages.
+        ma_4 : Series
+            The series of slowest of the 4 moving averages.
+        start : Int
+            The first valid row to start calculating signals from.
+        position_signal : Series
+            Series of whether to be long, short or neutral on the following date.
+        trade_signal : Series
+            Series indicating when buy or sell decisions should be made the 
+            following day.
+        """
+        
+        # Create the 4 simple moving averages
+        if simple_ma:
+            ma_1 = df['Close'].rolling(ma1).mean()
+            ma_2 = df['Close'].rolling(ma2).mean()
+            ma_3 = df['Close'].rolling(ma3).mean()
+            ma_4 = df['Close'].rolling(ma4).mean()
+        
+        else:
+            ma_1 = Indicators.EMA(input_series=df['Close'], time_period=ma1)
+            ma_2 = Indicators.EMA(input_series=df['Close'], time_period=ma2)
+            ma_3 = Indicators.EMA(input_series=df['Close'], time_period=ma3)
+            ma_4 = Indicators.EMA(input_series=df['Close'], time_period=ma4)            
+        
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(ma_4))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(ma_4))
+        
+        # Create start point from first valid number
+        start = np.where(~np.isnan(ma_4))[0][0]
+    
+        # for each row in the DataFrame after the longest MA has started
+        for row in range(start + 1, len(ma_4)):
+            
+            # If the second slowest MA is above the slowest MA
+            if ma_3[row] > ma_4[row]:
+                
+                # If the fastest MA crosses above the second fastest MA
+                if ma_1[row] > ma_2[row] and ma_1[row - 1] < ma_2[row - 1]:
+                    
+                    # Set the position signal to long
+                    position_signal[row] = 1
+                    
+                    # Signal to go long
+                    trade_signal[row] = 1 - position_signal[row-1]
+                
+                # If the fastest MA crosses below the second fastest MA
+                elif ma_1[row] < ma_2[row] and ma_1[row - 1] > ma_2[row - 1]:
+                    
+                    # Set the position signal to flat
+                    position_signal[row] = 0                    
+                        
+                    # Signal to close out long
+                    trade_signal[row] = -1
+                    
+                # Otherwise, take no action
+                else:                
+                    trade_signal[row] = 0
+                    position_signal[row] = position_signal[row-1]
+                    
+            
+            # If the second slowest MA is below the slowest MA
+            else:
+    
+                # If the fastest MA crosses below the second fastest MA
+                if ma_1[row] < ma_2[row] and ma_1[row - 1] > ma_2[row - 1]:
+    
+                    # Set the position signal to short
+                    position_signal[row] = -1
+    
+                    # Signal to go short
+                    trade_signal[row] = -1 - position_signal[row-1] 
+    
+                # If the fastest MA crosses above the second fastest MA
+                elif ma_1[row] > ma_2[row] and ma_1[row - 1] < ma_2[row - 1]:
+    
+                    # Set the position to flat
+                    position_signal[row] = 0
+    
+                    # Signal to close out short
+                    trade_signal[row] = 1
+                    
+                # Otherwise, take no action
+                else:                
+                    trade_signal[row] = 0
+                    position_signal[row] = position_signal[row-1]    
+    
+        # Assign the series to the OHLC data 
+        df['ma_1'] = ma_1
+        df['ma_2'] = ma_2
+        df['ma_3'] = ma_3
+        df['ma_4'] = ma_4
+    
+        return df, start, trade_signal 
+
+
+    @staticmethod
+    def _entry_parabolic_sar(df, acceleration_factor):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        acceleration_factor : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        # Extract high, low and close series from the DataFrame
+        high = df['High']
+        low = df['Low']
+        close = df['Close']        
+        
+        # Create empty arrays to store data    
+        sar = np.array([0.0]*len(df))
+        direction = np.array([0.0]*len(df))
+        trade_signal = np.array([0.0]*len(df))
+        ep = np.array([0.0]*len(df))
+        af = np.array([0.0]*len(df))
+        ep_sar_diff = np.array([0.0]*len(df))
+        af_x_diff = np.array([0.0]*len(df))
+    
+        # Configure initial values
+        initial_sip = 0.975 * close[0]
+        sar[0] = initial_sip
+        direction[0] = 1
+        ep[0] = high[0]
+        af[0] = 0.02
+        ep_sar_diff[0] = abs(sar[0] - ep[0])
+        af_x_diff[0] =  ep_sar_diff[0] * af[0]
+        start = 1
+        init_flag = True
+    
+        # Loop through, starting from the second row    
+        for row in range(start, len(df)):
+            
+            # If the previous day was long
+            if direction[row-1] == 1:
+                
+                # If the previous day's sar was greater than the previous day's 
+                # low
+                if sar[row-1] > low[row-1]:
+                    
+                    # If this is the starting trade
+                    if init_flag:
+                        
+                        # Enter short
+                        trade_signal[row-1] = -1
+                        
+                        # Set the flag to False
+                        init_flag = False
+                    
+                    else:                        
+                        # Close the long position and go short
+                        trade_signal[row-1] = -2
+                    
+                    # Set the new sar to the previous trades extreme price
+                    sar[row] = ep[row-1]
+                    
+                    # Switch the trade direction from long to short
+                    direction[row] = -direction[row-1] 
+                    
+                # If the previous day's sar plus the acceleration factor 
+                # multiplied by the difference between the extreme price and 
+                # the sar is greater than the lowest low of the previous 2 days     
+                elif (sar[row-1] + af_x_diff[row-1] 
+                      > min(low[row-1], low[row-2])):
+                    
+                    # Set the sar to the lowest low of the previous 2 days
+                    sar[row] = min(low[row-1], low[row-2])
+                    
+                    # Set the direction to the same as the previous day
+                    direction[row] = direction[row-1]
+                
+                # Otherwise    
+                else: 
+                    # Set the sar to the previous day's sar plus the 
+                    # acceleration factor multiplied by the difference between 
+                    # the extreme price and the sar
+                    sar[row] = sar[row-1] + af_x_diff[row-1]
+                    
+                    # Set the direction to the same as the previous day
+                    direction[row] = direction[row-1]
+            
+            # Otherwise if the previous day was short
+            else:
+                # If the previous day's sar was less than the previous day's 
+                # high
+                if sar[row-1] < high[row-1]:
+                    
+                    # Close the short position and go long
+                    trade_signal[row-1] = 2
+                    
+                    # Set the new sar to the previous trades extreme price
+                    sar[row] = ep[row-1]
+                    
+                    # Switch the trade direction from short to long
+                    direction[row] = -direction[row-1]    
+                
+                # If the previous day's sar less the acceleration factor 
+                # multiplied by the difference between the extreme price and 
+                # the sar is less than the highest high of the previous 2 days 
+                elif (sar[row-1] - af_x_diff[row-1] 
+                      < max(high[row-1], high[row-2])):
+                    
+                    # Set the sar to the highest high of the previous 2 days
+                    sar[row] = max(high[row-1], high[row-2])    
+                    
+                    # Set the direction to the same as the previous day
+                    direction[row] = direction[row-1]
+                
+                # Otherwise
+                else:    
+                    # Set the sar to the previous day's sar minus the 
+                    # acceleration factor multiplied by the difference between 
+                    # the extreme price and the sar
+                    sar[row] = sar[row-1] - af_x_diff[row-1]
+                    
+                    # Set the direction to the same as the previous day
+                    direction[row] = direction[row-1]
+            
+            # If the current trade direction is long
+            if direction[row] == 1:
+                
+                # If the trade has just reversed direction
+                if direction[row] != direction[row-1]:
+                    
+                    # Set the extreme price to the day's high
+                    ep[row] = high[row]
+                    
+                    # Set the initial acceleration factor to the input value
+                    af[row] = acceleration_factor
+                
+                # If the trade is the same as the previous day
+                else:
+                    
+                    # Set the extreme price to the greater of the previous 
+                    # day's extreme price and the current day's high
+                    ep[row] = max(ep[row-1], high[row])
+                    
+                    # If the trade is making a new high
+                    if ep[row] > ep[row-1]:
+                        
+                        # Increment the acceleration factor by the input value 
+                        # to a max of 0.2
+                        af[row] = min(af[row-1] + acceleration_factor, 0.2)
+                    
+                    # Otherwise
+                    else:    
+                        
+                        # Set the acceleration factor to the same as the 
+                        # previous day
+                        af[row] = af[row-1]
+            
+            # Otherwise if the current trade direction is short
+            else:
+                
+                # If the trade has just reversed direction
+                if direction[row] != direction[row-1]:
+                
+                    # Set the extreme price to the day's low
+                    ep[row] = low[row]
+                    
+                    # Set the initial acceleration factor to the input value
+                    af[row] = acceleration_factor
+                
+                # If the trade is the same as the previous day    
+                else:
+                    
+                    # Set the extreme price to the lesser of the previous day's 
+                    # extreme price and the current day's low
+                    ep[row] = min(ep[row-1], low[row])
+                    
+                    # If the trade is making a new low
+                    if ep[row] < ep[row-1]:
+                        
+                        # Increment the acceleration factor by the input value 
+                        # to a max of 0.2
+                        af[row] = min(af[row-1] + acceleration_factor, 0.2)
+                    
+                    # Otherwise    
+                    else:
+                        
+                        # Set the acceleration factor to the same as the 
+                        # previous day
+                        af[row] = af[row-1]
+            
+            # Calculate the absolute value of the difference between the 
+            # extreme price and the sar     
+            ep_sar_diff[row] = abs(sar[row] - ep[row])
+            
+            # Calculate the difference between the extreme price and the sar 
+            # multiplied by the acceleration factor
+            af_x_diff[row] =  ep_sar_diff[row] * af[row]
+        
+        df['sar'] = sar
+        df['direction_sar'] = direction
+        df['ep_sar'] = ep
+        df['af_sar'] = af
+        df['ep_sar_diff'] = ep_sar_diff
+        df['af_x_diff'] = af_x_diff        
+        
+        return df, start, trade_signal
+ 
+
+    @staticmethod
+    def _entry_channel_breakout(df, time_period):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE, optional
+            DESCRIPTION. The default is 10.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+
+        """
+        # Calculate rolling min and max closing prices based on time period
+        rolling_high_close = df['Close'].rolling(time_period).max()
+        rolling_low_close = df['Close'].rolling(time_period).min()
+        
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(rolling_high_close))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(rolling_high_close))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(rolling_high_close))
+        
+        # for each row in the DataFrame after the longest MA has started
+        for row in range(start, len(rolling_high_close)):
+            
+            # If the price rises to equal or above the n-day high close 
+            if df['Close'][row] >= rolling_high_close[row]:
+                   
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+                
+            # If the price falls to equal or below the n-day low close 
+            elif df['Close'][row] <= rolling_low_close[row]:
+    
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+    
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df['entry_rolling_high_close'] = rolling_high_close
+        df['entry_rolling_low_close'] = rolling_low_close 
+        
+        return df, start, trade_signal
+    
+    
+    @staticmethod
+    def _entry_stochastic_crossover(df, time_period, oversold, overbought):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        lower : TYPE
+            DESCRIPTION.
+        upper : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        # Create Stochastics for the specified time period
+        slow_k, slow_d = Indicators.stochastic(
+            df['High'], df['Low'], df['Close'], fast_k_period=time_period)
+   
+        # Create the column labels using the time period
+        slow_k_label = "Stoch_k_"+str(time_period)+"_entry"
+        slow_d_label = "Stoch_d_"+str(time_period)+"_entry"
+    
+        # Create start point based on slow d
+        start = np.where(~np.isnan(slow_d))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(slow_d))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(slow_d))
+        
+        # for each row in the DataFrame after the slow d has started
+        for row in range(start, len(slow_d)):
+            
+            # If the slow k crosses above the slow d from below having been 
+            # below the lower level 
+            if (slow_k[row] > slow_d[row] 
+                and slow_k[row-1] < slow_d[row-1] 
+                and slow_k[row] < oversold):
+                
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+            
+            # If the slow k crosses below the slow d from above having been 
+            # above the upper level
+            elif (slow_k[row] < slow_d[row] 
+                and slow_k[row-1] > slow_d[row-1] 
+                and slow_k[row] > overbought):
+                
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+            
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df[slow_k_label] = slow_k
+        df[slow_d_label] = slow_d        
+   
+        return df, start, trade_signal
+
+
+    @staticmethod
+    def _entry_stochastic_over_under(df, time_period, oversold, overbought):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        lower : TYPE
+            DESCRIPTION.
+        upper : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        # Create Stochastics for the specified time period
+        slow_k, slow_d = Indicators.stochastic(
+            df['High'], df['Low'], df['Close'], fast_k_period=time_period)
+   
+        # Create the column labels using the time period
+        slow_k_label = "Stoch_k_"+str(time_period)+"_entry"
+        slow_d_label = "Stoch_d_"+str(time_period)+"_entry"
+    
+        # Create start point based on slow d
+        start = np.where(~np.isnan(slow_d))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(slow_d))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(slow_d))
+        
+        # for each row in the DataFrame after the slow d has started
+        for row in range(start, len(slow_d)):
+            
+            # If both slow k and slow d cross above the lower level from below 
+            if (min(slow_k[row], slow_d[row]) > oversold 
+                and min(slow_k[row-1], slow_d[row-1]) < oversold):
+                
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+                
+            # If both slow k and slow d cross above the upper level from below 
+            elif (min(slow_k[row], slow_d[row]) > overbought 
+                and min(slow_k[row-1], slow_d[row-1]) < overbought):
+                
+                # Set the position signal to flat
+                position_signal[row] = 0
+                
+                # Signal to go flat
+                trade_signal[row] = 0 - position_signal[row-1]    
+            
+            # If both slow k and slow d cross below the upper level from above 
+            elif (max(slow_k[row], slow_d[row]) < overbought 
+                and max(slow_k[row-1], slow_d[row-1]) > overbought):
+                
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+                
+            # If both slow k and slow d cross below the lower level from above 
+            elif (max(slow_k[row], slow_d[row]) < oversold 
+                and max(slow_k[row-1], slow_d[row-1]) > oversold):
+                
+                # Set the position signal to flat
+                position_signal[row] = 0
+    
+                # Signal to go flat
+                trade_signal[row] = 0 - position_signal[row-1]    
+            
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df[slow_k_label] = slow_k
+        df[slow_d_label] = slow_d        
+   
+        return df, start, trade_signal    
+    
+    
+    @staticmethod
+    def _entry_stochastic_pop(df, time_period, oversold, overbought):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        lower : TYPE
+            DESCRIPTION.
+        upper : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        # Create Stochastics for the specified time period
+        slow_k, slow_d = Indicators.stochastic(
+            df['High'], df['Low'], df['Close'], fast_k_period=time_period)
+   
+        # Create the column labels using the time period
+        slow_k_label = "Stoch_k_"+str(time_period)+"_entry"
+        slow_d_label = "Stoch_d_"+str(time_period)+"_entry"
+    
+        # Create start point based on slow d
+        start = np.where(~np.isnan(slow_d))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(slow_d))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(slow_d))
+        
+        # for each row in the DataFrame after the slow d has started
+        for row in range(start, len(slow_d)):
+            
+            # If both slow k and slow d cross above the upper level from below 
+            if (min(slow_k[row], slow_d[row]) > overbought 
+                and min(slow_k[row-1], slow_d[row-1]) < overbought):
+                
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+                
+            # If slow k and slow d cross when the position is long 
+            elif ((position_signal[row] == 1) 
+                  and np.sign(slow_k[row] - slow_d[row]) != np.sign(
+                      slow_k[row-1] - slow_d[row-1])):
+                
+                # Set the position signal to flat
+                position_signal[row] = 0
+                
+                # Signal to go flat
+                trade_signal[row] = 0 - position_signal[row-1]    
+            
+            # If both slow k and slow d cross below the lower level from above 
+            elif (max(slow_k[row], slow_d[row]) < oversold 
+                and max(slow_k[row-1], slow_d[row-1]) > oversold):
+                
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+                
+            # If slow k and slow d cross when the position is short 
+            elif ((position_signal[row] == -1) 
+                  and np.sign(slow_k[row] - slow_d[row]) != np.sign(
+                      slow_k[row-1] - slow_d[row-1])):
+                
+                # Set the position signal to flat
+                position_signal[row] = 0
+    
+                # Signal to go flat
+                trade_signal[row] = 0 - position_signal[row-1]    
+            
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df[slow_k_label] = slow_k
+        df[slow_d_label] = slow_d        
+   
+        return df, start, trade_signal    
+    
+    
+    @staticmethod
+    def _entry_rsi(df, time_period, oversold, overbought):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        lower : TYPE
+            DESCRIPTION.
+        upper : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        # Create RSI for the specified time period
+        rsi = Indicators.RSI(df['Close'], time_period)
+        
+        # Create the column label using the time period
+        rsi_label = "RSI_"+str(time_period)+"_entry"
+    
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(rsi))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(rsi))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(rsi))
+        
+        # for each row in the DataFrame after the cci has started
+        for row in range(start, len(rsi)):
+            
+            # If the cci crosses above the threshold from below
+            if rsi[row] < oversold and rsi[row-1] > oversold:
+                
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+            
+            # If the cci crosses below the threshold from above
+            elif rsi[row] > overbought and rsi[row-1] < overbought:
+                
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+            
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df[rsi_label] = rsi
+   
+        return df, start, trade_signal
+    
+    
+    @staticmethod
+    def _entry_commodity_channel_index(df, time_period, threshold):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        threshold : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        
+        # Create CCI for the specified time period
+        cci = Indicators.CCI(df['High'], df['Low'], df['Close'], time_period)
+        
+        # Create the column label using the time period
+        cci_label = "CCI_"+str(time_period)+"_entry"
+    
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(cci))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(cci))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(cci))
+        
+        # for each row in the DataFrame after the cci has started
+        for row in range(start, len(cci)):
+            
+            # If the cci crosses above the threshold from below
+            if cci[row] > threshold and cci[row-1] < threshold:
+                
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+            
+            # If the cci crosses below the threshold from above
+            elif cci[row] < threshold and cci[row-1] > threshold:
+                
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+            
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df[cci_label] = cci
+   
+        return df, start, trade_signal
+    
+    
+    @staticmethod
+    def _entry_momentum(df, time_period, threshold):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE, optional
+            DESCRIPTION. The default is 10.
+        threshold : TYPE, optional
+            DESCRIPTION. The default is 0.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+
+        """
+        # Calculate past close based on time period
+        n_day_close = df['Close'].shift(10)
+        
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(n_day_close))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(n_day_close))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(n_day_close))
+        
+        # for each row in the DataFrame after the longest MA has started
+        for row in range(start, len(n_day_close)):
+            
+            # If the price rises to equal or above the n-day high close 
+            if df['Close'][row] >= n_day_close[row] + threshold:
+                   
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+                
+            # If the price falls to equal or below the n-day low close 
+            elif df['Close'][row] <= n_day_close[row] - threshold:
+    
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+    
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df['n_day_close'] = n_day_close
+    
+        return df, start, trade_signal
+    
+    
+    @staticmethod
+    def _entry_volatility(df, time_period, threshold):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        threshold : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        start : TYPE
+            DESCRIPTION.
+        trade_signal : TYPE
+            DESCRIPTION.
+
+        """
+        # Create ATR for the specified time period
+        atr = Indicators.ATR(df['High'], df['Low'], df['Close'], time_period)
+        
+        # Create the column label using the time period
+        atr_label = "ATR_"+str(time_period)+"_entry"
+    
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(atr))[0][0]
+            
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(atr))
+        
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(atr))
+        
+        # for each row in the DataFrame after the atr has started
+        for row in range(start, len(atr)):
+            
+            # If the increase in closing price exceeds the atr * threshold
+            if (df['Close'][row] - df['Close'][row-1]) > (atr[row] * threshold):
+                
+                # Set the position signal to long
+                position_signal[row] = 1
+                
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+            
+            # If the decrease in closing price exceeds the atr * threshold
+            elif (df['Close'][row-1] - df['Close'][row]) > (atr[row] * threshold):
+                
+                # Set the position signal to short
+                position_signal[row] = -1
+    
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+            
+            # Otherwise, take no action
+            else:                
+                trade_signal[row] = 0
+                position_signal[row] = position_signal[row-1]
+    
+        df[atr_label] = atr
+   
+        return df, start, trade_signal
+    
+    
+    @staticmethod        
+    def _exit_parabolic_sar(
+            df, trade_number, end_of_day_position, time_period, 
+            acceleration_factor, sip_price):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        acceleration_factor : TYPE
+            DESCRIPTION.
+        sip_price : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        parabolic_sar_exit : TYPE
+            DESCRIPTION.
+
+        """
+        
+        # Calculate rolling min and max closing prices based on time period
+        rolling_high_close = df['Close'].rolling(time_period).max()
+        rolling_low_close = df['Close'].rolling(time_period).min()
+        
+        # Initialize zero arrays to store data
+        sar = np.array([0.0]*len(df))
+        parabolic_sar_exit = np.array([0]*len(df))        
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                
+                if trade_number[row] == 1:
+                    if end_of_day_position[row] > 0:
+                        initial_point = rolling_low_close[row]
+                    else:
+                        initial_point = rolling_high_close[row]
+                
+                trade_first_row = df.index.get_loc(
+                    df[trade_number==trade_number[row]].index[0])
+                trade_row_num = row - trade_first_row
+                if end_of_day_position[row] > 0:
+                    
+                    if trade_number[row] == 1:
+                        initial_point = rolling_low_close[row]
+                    else:
+                        if sip_price:
+                            initial_point = rolling_low_close[row]
+                        else:
+                            initial_point = max(
+                                df[trade_number==trade_number[row]-1]['Close'])
+                    
+                    if trade_row_num == 0:
+                        sar[row] = initial_point
+                        af = acceleration_factor
+                    else:
+                        sar[row] = sar[row-1] + (
+                            af * (rolling_high_close[row] - sar[row-1]))
+                        af = max(af + acceleration_factor, 0.2)
+                        
+                    if df['Close'][row] < sar[row]:
+                        parabolic_sar_exit[row] = -1
+                    else:
+                        parabolic_sar_exit[row] = 0                    
+                        
+                elif end_of_day_position[row] < 0:
+                    
+                    if trade_number[row] == 1:
+                        initial_point = rolling_high_close[row]
+                    else:
+                        if sip_price:
+                            initial_point = rolling_high_close[row]
+                        else:
+                            initial_point = min(
+                                df[trade_number==trade_number[row]-1]['Close'])                
+                    
+                    if trade_row_num == 0:
+                        sar[row] = initial_point
+                        af = acceleration_factor
+                    else:
+                        sar[row] = sar[row-1] + (af * (
+                            rolling_low_close[row] - sar[row-1]))
+                        af = max(af + acceleration_factor, 0.2)
+                        
+                    if df['Close'][row] > sar[row]:
+                        parabolic_sar_exit[row] = 1
+                    else:
+                        parabolic_sar_exit[row] = 0                                 
+                else:
+                    sar[row] = 0
+                    parabolic_sar_exit[row] = 0
+                    
+        df['rolling_high_close_sar'] = rolling_high_close            
+        df['rolling_low_close_sar'] = rolling_low_close
+        df['sar'] = sar
+                    
+        return df, parabolic_sar_exit 
+    
+    
+    @staticmethod
+    def _exit_rsi_trail(df, trade_number, end_of_day_position, time_period, 
+                        oversold, overbought):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        time_period : TYPE
+            DESCRIPTION.
+        oversold : TYPE
+            DESCRIPTION.
+        overbought : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        rsi_trail_exit : TYPE
+            DESCRIPTION.
+
+        """
+       
+        rsi = Indicators.RSI(close=df['Close'], time_period=time_period)
+
+        rsi_label = "RSI_"+str(time_period)+"_exit"
+        
+        rsi_trail_exit = np.array([0]*len(df))
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if (df['Close'][row] < df['Close'][row-1] 
+                        and rsi[row] > overbought):
+                        rsi_trail_exit[row] = -1
+                    else:
+                        rsi_trail_exit[row] = 0
+                elif end_of_day_position[row] < 0:
+                    if (df['Close'][row] > df['Close'][row-1] 
+                        and rsi[row] < oversold):
+                        rsi_trail_exit[row] = 1
+                    else:
+                        rsi_trail_exit[row] = 0
+                else:
+                    rsi_trail_exit[row] = 0
+        
+        df[rsi_label] = rsi
+                    
+        return df, rsi_trail_exit
+    
+    
+    @staticmethod
+    def _exit_key_reversal(
+            df, trade_number, end_of_day_position, time_period):
+        
+        # Calculate rolling high and low prices based on time period
+        rolling_high = df['High'].rolling(time_period).max()
+        rolling_low = df['Low'].rolling(time_period).min()
+        
+        key_reversal_exit = np.array([0]*len(df))
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if (rolling_high[row] > rolling_high[row-1] 
+                        and df['Close'][row] < df['Close'][row-1]):
+                        key_reversal_exit[row] = -1
+                    else:
+                        key_reversal_exit[row] = 0
+                elif end_of_day_position[row] < 0:
+                    if (rolling_low[row] < rolling_low[row-1] 
+                        and df['Close'][row] > df['Close'][row-1]):
+                        key_reversal_exit[row] = 1
+                    else:
+                        key_reversal_exit[row] = 0
+                else:
+                    key_reversal_exit[row] = 0
+                        
+        df['rolling_high_key'] = rolling_high
+        df['rolling_low_key'] = rolling_low
+                    
+        return df, key_reversal_exit
+    
+    
+    @staticmethod
+    def _exit_volatility(
+            df, trade_number, end_of_day_position, time_period, threshold):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE, optional
+            DESCRIPTION. The default is 5.
+        threshold : TYPE, optional
+            DESCRIPTION. The default is 1.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+
+        """
+       
+        volatility_exit = np.array([0]*len(df))
+    
+        atr = Indicators.ATR(df['High'], df['Low'], df['Close'], time_period)
+        
+        # Create the column label using the time period
+        atr_label = "ATR_"+str(time_period)+"_exit"
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if ((df['Close'][row] - df['Close'][row-1]) 
+                        > (atr[row] * threshold)):
+                        volatility_exit[row] = -1
+                    else:
+                        volatility_exit[row] = 0
+                
+                elif end_of_day_position[row] < 0:
+                    if ((df['Close'][row-1] - df['Close'][row]) 
+                        > (atr[row] * threshold)):
+                        volatility_exit[row] = 1
+                    else:
+                        volatility_exit[row] = 0
+                else:
+                    volatility_exit[row] = 0
+                        
+        df[atr_label] = atr
+                   
+        return df, volatility_exit
+    
+    
+    @staticmethod
+    def _exit_stochastic_crossover(df, trade_number, end_of_day_position, 
+                                  time_period):
+        
+        slow_k, slow_d = Indicators.stochastic(
+            df['High'], df['Low'], df['Close'], fast_k_period=time_period, 
+            fast_d_period=3, slow_k_period=3, slow_d_period=3, output_type='slow')
+    
+        stoch_cross_exit = np.array([0]*len(df))
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if slow_k[row] < slow_d[row] and slow_k[row-1] > slow_d[row-1]:
+                        stoch_cross_exit[row] = -1
+                    else:
+                        stoch_cross_exit[row] = 0
+                
+                elif end_of_day_position[row] < 0:
+                    if slow_k[row] > slow_d[row] and slow_k[row-1] < slow_d[row-1]:
+                        stoch_cross_exit[row] = 1
+                    else:
+                        stoch_cross_exit[row] = 0
+                else:
+                    stoch_cross_exit[row] = 0
+                        
+        df['slow_k_exit'] = slow_k
+        df['slow_d_exit'] = slow_d            
+                    
+        return df, stoch_cross_exit
+    
+    
+    @staticmethod
+    def _exit_random(df, trade_number, end_of_day_position):
+
+        exit_days = random.randint(5,20)
+        
+        random_exit = np.array([0]*len(df))
+        for row in range(1, len(df)):
+            trade_first_row = df.index.get_loc(
+                    df[trade_number==trade_number[row]].index[0])
+            trade_row_num = row - trade_first_row
+            
+            if trade_number[row] != 0:
+                if trade_row_num > exit_days-1:
+                    if end_of_day_position[row] > 0:
+                        if df['Close'][row] < df['Close'][row-1]:
+                            random_exit[row] = -1
+                        else:
+                            random_exit[row] = 0
+                    elif end_of_day_position[row] < 0:
+                        if df['Close'][row] > df['Close'][row-1]:
+                            random_exit[row] = 1
+                        else:
+                            random_exit[row] = 0
+                    else:
+                        random_exit[row] = 0
+        
+        df['exit_days'] = exit_days        
+                        
+        return df, random_exit
+    
+    
+    @classmethod
+    def _exit_dollar(
+            cls, df, trigger_value, trade_number, 
+                end_of_day_position, trade_high_price=None, 
+                trade_low_price=None, exit_level=None):
+        
+        if exit_level == 'profit_target':
+            return cls._exit_profit_target(
+                df, trigger_value=trigger_value, 
+                trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)
+        
+        elif exit_level == 'initial':
+            return cls._exit_initial_dollar_loss(
+                df, trigger_value=trigger_value,
+                trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)
+        
+        elif exit_level == 'breakeven':
+            return cls._exit_breakeven(
+                df, trigger_value=trigger_value,
+                trade_number=trade_number, 
+                end_of_day_position=end_of_day_position, 
+                trade_high_price=trade_high_price, 
+                trade_low_price=trade_low_price)
+    
+        elif exit_level == 'trail_close':
+            return cls._exit_trailing(
+                df, trigger_value=trigger_value, 
+                trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)
+    
+        elif exit_level == 'trail_high_low':
+            return cls._exit_trailing(
+                df, trigger_value=trigger_value, 
+                trade_number=trade_number, 
+                end_of_day_position=end_of_day_position)
+    
+    
+    @staticmethod
+    def _exit_profit_target(
+            df, trigger_value, trade_number, end_of_day_position):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trigger_value : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        profit_target_exit : TYPE
+            DESCRIPTION.
+
+        """
+        profit_target_exit = np.array([0]*len(df))
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if df['Close'][row] > trigger_value[row]:
+                        profit_target_exit[row] = -1
+                elif end_of_day_position[row] < 0:
+                    if df['Close'][row] < trigger_value[row]:
+                        profit_target_exit[row] = 1
+                else:
+                    profit_target_exit[row] = 0
+    
+        return df, profit_target_exit
+    
+    
+    @staticmethod
+    def _exit_initial_dollar_loss(
+            df, trigger_value, trade_number, end_of_day_position):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trigger_value : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        initial_dollar_loss_exit : TYPE
+            DESCRIPTION.
+
+        """
+        initial_dollar_loss_exit = np.array([0]*len(df))
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if df['Close'][row] < trigger_value[row]:
+                        initial_dollar_loss_exit[row] = -1    
+                elif end_of_day_position[row] < 0:
+                    if df['Close'][row] > trigger_value[row]:
+                        initial_dollar_loss_exit[row] = 1
+                else:
+                    initial_dollar_loss_exit[row] = 0    
+    
+        return df, initial_dollar_loss_exit
+    
+    
+    @staticmethod
+    def _exit_breakeven(
+            df, trigger_value, trade_number, end_of_day_position, 
+            trade_high_price, trade_low_price):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trigger_value : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        trade_high_price : TYPE
+            DESCRIPTION.
+        trade_low_price : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        breakeven_exit : TYPE
+            DESCRIPTION.
+
+        """
+        breakeven_exit = np.array([0.0]*len(df))
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:    
+                    if trade_high_price[row] > trigger_value[row]:
+                        if df['Close'][row] < trigger_value[row]:
+                            breakeven_exit[row] = -1
+                elif end_of_day_position[row] < 0:
+                    if trade_low_price[row] < trigger_value[row]:
+                        if df['Close'][row] > trigger_value[row]:
+                            breakeven_exit[row] = 1
+                else:
+                    breakeven_exit[row] = 0
+    
+        return df, breakeven_exit
+    
+    
+    @staticmethod
+    def _exit_trailing(df, trigger_value, trade_number, end_of_day_position):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trigger_value : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        trailing_exit : TYPE
+            DESCRIPTION.
+
+        """
+        trailing_exit = np.array([0.0]*len(df))
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if df['Close'][row] < trigger_value[row]:
+                        trailing_exit[row] = -1
+                elif end_of_day_position[row] < 0:
+                    if df['Close'][row] > trigger_value[row]:
+                        trailing_exit[row] = 1    
+                else:
+                    trailing_exit[row] = 0    
+    
+        return df, trailing_exit
+        
+    
+    @staticmethod
+    def _exit_support_resistance(
+            df, trade_number, end_of_day_position, time_period):
+        
+        # Calculate rolling min and max closing prices based on time period
+        rolling_high_close = df['Close'].rolling(time_period).max()
+        rolling_low_close = df['Close'].rolling(time_period).min()
+        
+        support_resistance_exit = np.array([0.0]*len(df))
+        
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                if end_of_day_position[row] > 0:
+                    if df['Close'][row] < rolling_low_close[row]:
+                        support_resistance_exit[row] = -1
+    
+                elif end_of_day_position[row] < 0:
+                    if df['Close'][row] > rolling_high_close[row]:
+                        support_resistance_exit[row] = 1
+    
+                else:
+                    support_resistance_exit[row] = 0
+        
+        df['rolling_high_close_sr'] = rolling_high_close
+        df['rolling_low_close_sr'] = rolling_low_close
+                    
+        return df, support_resistance_exit                 
+    
+    
+    @staticmethod
+    def _exit_immediate_profit(
+            df, trade_number, end_of_day_position, time_period):
+        """
+        
+
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        time_period : TYPE, optional
+            DESCRIPTION. The default is 5.
+
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+
+        """        
+       
+        immediate_profit_exit = np.array([0.0]*len(df))
+        for row in range(1, len(df)):
+            if trade_number[row] != 0:
+                trade_first_row = df.index.get_loc(
+                    df[trade_number==trade_number[row]].index[0])
+                trade_row_num = row - trade_first_row
+                if trade_row_num == time_period-1:
+                    if end_of_day_position[row] > 0:
+                        if df['Close'][row] < df['Close'][row-time_period]:
+                            immediate_profit_exit[row] = -1
+                    elif end_of_day_position[row] < 0:
+                        if df['Close'][row] > df['Close'][row-time_period]:
+                            immediate_profit_exit[row] = 1                
+                    else:
+                        immediate_profit_exit[row] = 0
+       
+        return df, immediate_profit_exit
+
+
+    @staticmethod
+    def _exit_nday_range(
+            df, trade_number, end_of_day_position, time_period):
+        """
+        
+    
+        Parameters
+        ----------
+        df : TYPE
+            DESCRIPTION.
+        trade_number : TYPE
+            DESCRIPTION.
+        end_of_day_position : TYPE
+            DESCRIPTION.
+        time_period : TYPE, optional
+            DESCRIPTION. The default is 5.
+    
+        Returns
+        -------
+        df : TYPE
+            DESCRIPTION.
+        nday_range_exit : TYPE
+            DESCRIPTION.
+    
+        """       
+        
+        # The highest high minus the lowest low of the last n days
+        n_day_low = df['Low'].rolling(time_period).min()
+        n_day_high = df['High'].rolling(time_period).max()
+        high_low_range = n_day_high - n_day_low
+        
+        # The largest high low daily range of the last n bars
+        bar_range = (df['High'] - df['Low']).rolling(time_period).max()
+        
+        # Create an empty array to store the signals
+        nday_range_exit = np.array([0.0]*len(df))
+        
+        # For each row in the data
+        for row in range(1, len(df)):
+            
+            # If there is a trade on
+            if trade_number[row] != 0:
+
+                # Find the row that relates to the trade entry
+                trade_first_row = df.index.get_loc(
+                    df[trade_number==trade_number[row]].index[0])
+                trade_row_num = row - trade_first_row
+                
+                # If it is the trade entry date
+                if trade_row_num == 0:
+                    
+                    # Set flags for if the targets have been hit
+                    pt_1_hit = False
+                    pt_2_hit = False
+                    
+                    # Set target 1 as the lower of the high low range of the last 
+                    # n days and the longest bar of the last n days
+                    target_1 = min(high_low_range[row], bar_range[row])
+                    target_2 = max(high_low_range[row], bar_range[row])
+                    
+                    # If the position is long, add these to the close to set the 
+                    # price targets
+                    if end_of_day_position[row] > 0:
+                        price_target_1 = df['Close'][row] + target_1
+                        price_target_2 = df['Close'][row] + target_2
+                    
+                    # Otherwise subtract from the price
+                    else:
+                        price_target_1 = df['Close'][row] - target_1
+                        price_target_2 = df['Close'][row] - target_2    
+    
+                # For every other day in the trade
+                else:
+                    
+                    # If the position is long
+                    if end_of_day_position[row] > 0:
+                        
+                        # If the close is above the target 1 and this has not yet 
+                        # been hit 
+                        if (df['Close'][row] > price_target_1 
+                            and pt_1_hit == False):
+                            
+                            # Set the exit signal to -1
+                            nday_range_exit[row] = -1
+                            
+                            # Set the profit target 1 hit flag to True
+                            pt_1_hit = True
+                            
+                        # If the close is above the target 2 and this has not yet 
+                        # been hit    
+                        elif (df['Close'][row] > price_target_2 
+                              and pt_2_hit == False):
+                            
+                            # Set the exit signal to -1
+                            nday_range_exit[row] = -1
+                            
+                            # Set the profit target 2 hit flag to True
+                            pt_2_hit = True
+                            
+                        # Otherwise    
+                        else:
+                            # Set the exit signal to 0
+                            nday_range_exit[row] = 0
+                    
+                    # If the position is short        
+                    else:
+                        
+                        # If the close is below the target 1 and this has not yet 
+                        # been hit 
+                        if (df['Close'][row] < price_target_1 
+                            and pt_1_hit == False):
+                            
+                            # Set the exit signal to 1
+                            nday_range_exit[row] = 1
+                            
+                            # Set the profit target 1 hit flag to True
+                            pt_1_hit = True
+                            
+                        # If the close is above the target 2 and this has not yet 
+                        # been hit    
+                        elif (df['Close'][row] < price_target_2 
+                              and pt_2_hit == False):
+                            
+                            # Set the exit signal to 1
+                            nday_range_exit[row] = 1
+                            
+                            # Set the profit target 2 hit flag to True
+                            pt_2_hit = True
+                            
+                        # Otherwise    
+                        else:
+                            # Set the exit signal to 0
+                            nday_range_exit[row] = 0
+       
+        return df, nday_range_exit
+    
+
     @classmethod        
     def _triple_ma_signal(cls, df, short_ma, medium_ma, long_ma, 
                          position_size):
@@ -774,7 +3762,7 @@ class Data():
         trade_count = 0
         
         return start, pos, trade_signal, trade_number, trade_count
-    
+
 
     @staticmethod
     def _calculate_trades(row, trade_signal, pos, trade_number, trade_count):
@@ -948,6 +3936,7 @@ class Data():
         
         # Create array of zeros 
         day_pnl = np.array([0]*len(close), dtype=float)
+        last_day_trade_pnl = np.array([0]*len(close), dtype=float)
         
         # For each row of closing prices
         for row in range(1, len(close)):
@@ -960,6 +3949,7 @@ class Data():
                     
                     # Set the pnl to zero
                     day_pnl[row] = 0
+                    
                 # Otherwise:
                 else:
                     # Set the pnl to the previous day's position multiplied by 
@@ -979,7 +3969,16 @@ class Data():
                     # between todays close and yesterdays close
                     day_pnl[row] = pos[row] * (close[row] - close[row - 1])
                 
-                # If the position is not the same as the previous day
+                # If the position is reversed from the previous day
+                elif pos[row] == (-1) * pos[row - 1]:
+                    day_pnl[row] = (
+                        pos[row] * (close[row] - open[row]) - 
+                        abs(pos[row] * slippage)) - commission
+                    last_day_trade_pnl[row] = (
+                        pos[row - 1] * (open[row] - close[row - 1]) - 
+                        abs(pos[row - 1] * slippage)) - commission
+                
+                # If the position was opened from flat
                 else:
                     
                     # Set the pnl to the current position * the difference 
@@ -990,7 +3989,9 @@ class Data():
                         abs(pos[row] * slippage)) - commission
         
         # Create daily pnl column in DataFrame, rounding to 2dp            
-        df['daily_pnl'] = np.round(day_pnl, 2)    
+        df['current_trade_pnl'] = np.round(day_pnl, 2)    
+        df['last_day_trade_pnl'] = last_day_trade_pnl
+        df['daily_pnl'] = df['current_trade_pnl'] + df['last_day_trade_pnl']    
     
         return df
     
@@ -1015,6 +4016,8 @@ class Data():
         """
         # Take the trade number and daily pnl series from df
         trade_number = df['trade_number']
+        current_trade_pnl = df['current_trade_pnl']    
+        last_day_trade_pnl = df['last_day_trade_pnl']        
         daily_pnl = df['daily_pnl']
     
         # Create arrays of zeros
@@ -1061,12 +4064,13 @@ class Data():
             # If there is a current trade
             if trade_number[row] != 0:   
                 
-                # If it is the trade entry date 
-                if trade_row_num == trade_first_row:
-                    
+                # If it is the trade entry date and there was no prior trade 
+                if (trade_row_num == 0 
+                    and trade_number[row-1] == 0):
+                       
                     # Set cumulative trade pnl to the days pnl
                     cumulative_trade_pnl[row] = daily_pnl[row]
-                    
+
                     # The maximum of the initial days pnl and zero
                     max_trade_pnl[row] = max(daily_pnl[row], 0)
                     
@@ -1076,9 +4080,35 @@ class Data():
                     
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = closed_equity[row-1]
+
+
+                # If it is the trade entry date and this reverses the position 
+                # of a prior trade 
+                elif (trade_row_num == 0 
+                    and trade_number[row-1] != 0):
+                       
+                    # Set cumulative trade pnl to the previous days cumulative 
+                    # pnl plus the last days pnl
+                    cumulative_trade_pnl[row] = (cumulative_trade_pnl[row-1] 
+                                                 + last_day_trade_pnl[row])
+                   
+                    #  Set cumulative trade pnl to the previous days cumulative 
+                    # pnl plus the last days pnl
+                    max_trade_pnl[row] = max(
+                        cumulative_trade_pnl[row], max_trade_pnl[row-1])
+                    
+                    # Set the mtm equity to the previous days mtm equity plus
+                    # the days pnl
+                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
+                    
+                    # Set the closed equity to the previous days closed equity
+                    closed_equity[row] = (mtm_equity[row-1] 
+                                          + last_day_trade_pnl[row])
+
     
-                # If it is the trade exit date
-                elif trade_last_row - row == 0:
+                # If it is the trade exit date and not a reversal
+                elif (trade_last_row - row == 0 
+                      and trade_number[row] == trade_number[row-1]):
                     
                     # Set cumulative trade pnl to the previous days cumulative 
                     # pnl plus the days pnl
@@ -1096,6 +4126,28 @@ class Data():
                     
                     # Set the closed equity to the mtm equity
                     closed_equity[row] = mtm_equity[row] 
+
+                
+                # If it is the second day of a reversal trade
+                elif (trade_row_num == 1 
+                      and trade_number[row-1] != trade_number[row-2]):
+                    
+                    # Set cumulative trade pnl to the previous days current 
+                    # pnl plus the days pnl
+                    cumulative_trade_pnl[row] = (current_trade_pnl[row-1] 
+                                                 + daily_pnl[row])
+                    
+                    # The maximum of the first and second days pnl and zero
+                    max_trade_pnl[row] = max(cumulative_trade_pnl[row], 
+                                             current_trade_pnl[row-1])
+                    
+                    # Set the mtm equity to the previous days mtm equity plus
+                    # the days pnl
+                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
+                    
+                    # Set the closed equity to the previous days closed equity
+                    closed_equity[row] = closed_equity[row-1]
+
                 
                 # For every other day in the trade 
                 else:
@@ -1116,7 +4168,8 @@ class Data():
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = closed_equity[row-1]
 
-            # If there is no curent trade 
+
+            # If there is no current trade 
             else:
                 # Set cumulative trade pnl to zero
                 cumulative_trade_pnl[row] = 0
@@ -1128,10 +4181,10 @@ class Data():
                 closed_equity[row] = closed_equity[row-1]
 
             # Maximum mtm equity to this point            
-            max_mtm_equity[row] = np.max(mtm_equity[:row+1])
+            max_mtm_equity[row] = np.max(mtm_equity[0:row+1])
             
             # Minimum mtm equity to this point            
-            min_mtm_equity[row] = np.min(mtm_equity[:row+1])
+            min_mtm_equity[row] = np.min(mtm_equity[0:row+1])
             
             # Maximum closed equity to this point
             max_closed_equity[row] = np.max(closed_equity[:row+1])    
@@ -1188,7 +4241,7 @@ class Data():
         df['max_closed_equity'] = max_closed_equity
         df['max_retracement'] = max_retracement
         df['max_mtm_equity'] = max_mtm_equity
-        df['min_mtm_equity'] = max_mtm_equity
+        df['min_mtm_equity'] = min_mtm_equity
         df['max_dd'] = max_drawdown
         df['max_dd_perc'] = max_drawdown_perc
         df['max_gain'] = max_gain
@@ -1219,8 +4272,23 @@ class Data():
         
         # Absolute difference between high and low price multiplied by 
         # position size
-        df['daily_perfect_profit'] = (abs(df['High'] - df['Low']) 
-                                      * position_size)
+        
+        dpp = np.array([0]*len(df))
+        
+        for row in range(len(dpp)):
+            
+            # Calculate Daily Perfect Profit            
+            dpp[row] = (abs(df['High'][row] - df['Low'][row]) * position_size)
+            
+            # If the High and Low are the same
+            if dpp[row] == 0:
+            
+                # Use the previous close
+                dpp[row] = (
+                    abs(df['High'][row] - df['Close'][row-1]) * position_size)        
+        
+        # Set this to the daily perfect profit
+        df['daily_perfect_profit'] = dpp
         
         # Create array of zeros
         df['total_perfect_profit'] = np.array(
@@ -1359,9 +4427,9 @@ class Data():
                     'return_raw'][row]
                    
         return monthly_data
-   
-        
-    def _output_results(self, df, ticker, strategy_label, monthly_data):
+
+
+    def _output_results(self, df, monthly_data, reversal):
         """
         Create dictionary of performance data and print out results of backtest
 
@@ -1382,17 +4450,16 @@ class Data():
         """
         
         # Create performance data dictionary
-        self.performance_data(df=df, contract=ticker, 
-                              strategy_label=strategy_label, 
-                              monthly_data=monthly_data)
+        self.performance_data(df=df, monthly_data=monthly_data, 
+                              reversal=reversal)
         
         # Print out results
-        self.report_table(input_dict=self.perf_dict)
+        self.report_table(input_dict=self.perf_dict, reversal=reversal)
     
         return self
 
 
-    def performance_data(self, df, contract, strategy_label, monthly_data):
+    def performance_data(self, df, monthly_data, reversal):
         """
         Create dictionary of performance data
 
@@ -1416,17 +4483,26 @@ class Data():
         perf_dict = {}
         
         # Contract and strategy details
-        perf_dict['contract'] = contract
-        perf_dict['strategy'] = strategy_label
+        perf_dict['contract'] = self.ticker
+
+        # Reversal strategy has only a single label
+        if reversal:
+            perf_dict['strategy_label'] = self.strategy_label
+        
+        # Otherwise take the entry, exit and stop labels
+        else:
+            perf_dict['entry_label'] = self.entry_label
+            perf_dict['exit_label'] = self.exit_label
+            perf_dict['stop_label'] = self.stop_label
         
         # Initial Equity
         perf_dict['initial_equity'] = df['mtm_equity'].iloc[0]
         
         # Set Ticker Longname
         if self.source == 'norgate':
-            perf_dict['longname'] = self.norgate_name_dict[contract]
+            perf_dict['longname'] = self.norgate_name_dict[self.ticker]
         else:
-            perf_dict['longname'] = contract
+            perf_dict['longname'] = self.ticker
         
         # Slippage and commission in dollars
         perf_dict['slippage'] = self.slippage
@@ -1438,7 +4514,7 @@ class Data():
                
         # Maximum margin required 
         perf_dict['margin'] = math.ceil(
-            max(df['position_mtm']) / 100) * 100
+            max(abs(df['position_mtm'])) / 100) * 100
         
         # Net Profit
         perf_dict['net_pnl'] = df['total_pnl'].iloc[-1]
@@ -1573,12 +4649,18 @@ class Data():
         # Maximum Equity drawdown in percentage terms
         perf_dict['max_balance_drawback_perc'] = min(df['max_dd_perc']) * 100
         
+        # Time to recover from Max Drawdown
+        perf_dict['time_to_recover'] = self._time_to_recover(df)
+            
         # Maximum Equity gain
         perf_dict['max_gain'] = np.round(max(df['max_gain']), 2)
         
         # Maximum Equity gain in percentage terms
         perf_dict['max_gain_perc'] = max(df['max_gain_perc']) * 100
         
+        # Time taken for maximum gain
+        perf_dict['max_gain_time'] = self._time_max_gain(df)
+       
         # Reward / Risk ratio
         perf_dict['reward_risk'] = (perf_dict['net_pnl'] / 
                                     abs(perf_dict['max_balance_drawback']))
@@ -1616,37 +4698,100 @@ class Data():
             (perf_dict['long_only_pnl'] / perf_dict['return_period']) / 
             perf_dict['initial_equity']) * 100
         
+        # Return of a buy and hold strategy of SPX since the first trade entry
+        perf_dict['long_only_pnl_spx'] = (
+            (self.spx['Close'].iloc[-1] 
+             - self.spx['Open'].iloc[first_trade_start]) * 
+            self.spx_position_size) 
+        
+        # Annual Rate of return of buy and hold of SPX
+        perf_dict['annual_long_only_spx_ror'] = (
+            (perf_dict['long_only_pnl_spx'] / perf_dict['return_period']) / 
+            perf_dict['initial_equity']) * 100
+       
         # Riskfree Rate
         perf_dict['riskfree_rate'] = self.df_dict['df_riskfree']
         
-        # Mean
-        perf_dict['close_mean'] = np.round(np.mean(df.Close), 2)
+        # Mean Price
+        perf_dict['close_price_mean'] = np.round(np.mean(df['Close']), 2)
       
-        # Variance
-        perf_dict['close_variance'] = np.round(np.var(df.Close), 2) 
+        # Variance Price
+        perf_dict['close_price_variance'] = np.round(np.var(df['Close']), 2) 
         
-        # Standard Deviation
-        perf_dict['close_std_dev'] = np.round(np.std(df.Close), 2)
+        # Standard Deviation Price
+        perf_dict['close_price_std_dev'] = np.round(np.std(df['Close']), 2)
 
-        # Skewness
-        perf_dict['close_skewness'] = np.round(skew(df.Close), 2)        
+        # Skewness Price
+        perf_dict['close_price_skewness'] = np.round(skew(df['Close']), 2)        
 
-        # Kurtosis
-        perf_dict['close_kurtosis'] = np.round(kurtosis(df.Close), 2)
+        # Kurtosis Price
+        perf_dict['close_price_kurtosis'] = np.round(kurtosis(df['Close']), 2)
+        
+        # Mean Return
+        perf_dict['close_return_mean'] = np.round(
+            np.mean(df['Close'].pct_change()*100), 2)
+      
+        # Variance Return
+        perf_dict['close_return_variance'] = np.round(
+            np.var(df['Close'].pct_change()*100), 2) 
+        
+        # Standard Deviation Return
+        perf_dict['close_return_std_dev'] = np.round(
+            np.std(df['Close'].pct_change()*100), 2)
+
+        # Annualized Volatility
+        perf_dict['close_return_ann_vol'] = np.round(
+            np.std(df['Close'].pct_change()*np.sqrt(252)*100), 2)
+
+        # Skewness Return
+        perf_dict['close_return_skewness'] = np.round(
+            skew(df['Close'].pct_change()*100, nan_policy='omit'), 2)        
+
+        # Kurtosis Return
+        perf_dict['close_return_kurtosis'] = np.round(kurtosis(
+            df['Close'].pct_change()*100, nan_policy='omit'), 2)
         
         # Efficiency Ratio
         perf_dict['efficiency_ratio'] = np.round(
-            (abs(df.Close[-1] - df.Close[0]) 
-            / np.nansum(abs(df.Close-df.Close.shift()))) * 100, 2)
+            (abs(df['Close'][-1] - df['Close'][0]) 
+            / np.nansum(abs(df['Close']-df['Close'].shift()))) * 100, 2)
+        
+        # MTM Equity Standard Deviation
+        perf_dict['equity_std_dev'] = np.round(
+            np.std(df['mtm_equity'].pct_change()*100), 2)
         
         # Sharpe Ratio
         perf_dict['sharpe_ratio'] = ((
             perf_dict['annual_ror'] - perf_dict['riskfree_rate']) 
-            / perf_dict['close_std_dev'])
+            / perf_dict['equity_std_dev'])
         
         # Information Ratio
         perf_dict['information_ratio'] = (
-            perf_dict['annual_ror'] / perf_dict['close_std_dev'])
+            perf_dict['annual_ror'] / perf_dict['equity_std_dev'])
+        
+        # Treynor Ratio
+        inv_correl = self.spx.Close.pct_change().corr(
+            df.mtm_equity.pct_change())
+        #stock_correl = self.spx.Close.pct_change().corr(df.Close.pct_change())
+        sd_inv = np.std(df.mtm_equity.pct_change())
+        #sd_stock = np.std(df.Close.pct_change())
+        sd_index = np.std(self.spx.Close.pct_change())
+        #beta = stock_correl * (sd_stock / sd_index)
+        beta = inv_correl * (sd_inv / sd_index)
+        treynor = np.round((
+            perf_dict['annual_ror'] - perf_dict['riskfree_rate']) 
+            / beta, 2)
+        if treynor > 0:
+            perf_dict['treynor_ratio'] = treynor
+        else:
+            perf_dict['treynor_ratio'] = 'N/A'
+        
+        # Sortino Ratio
+        equity_return = df['mtm_equity'].pct_change()*100
+        downside_deviation = np.std(equity_return[equity_return < 0])
+        perf_dict['sortino_ratio'] = np.round((
+            perf_dict['annual_ror'] - perf_dict['riskfree_rate']) 
+            / downside_deviation, 2)
         
         # Calmar Ratio
         perf_dict['calmar_ratio'] = (
@@ -1675,16 +4820,27 @@ class Data():
         # Open equity
         perf_dict['open_equity'] = df['open_equity'].iloc[-1]
         
+        # Closed equity
+        perf_dict['closed_equity'] = df['closed_equity'].iloc[-1]
+        
+        # Largest monthly gain
+        perf_dict['month_net_pnl_large'] = (
+            monthly_data['total_net_profit'].max())
+        
+        # Largest monthly loss
+        perf_dict['month_net_pnl_small'] = (
+            monthly_data['total_net_profit'].min())
+        
+        # Average monthly gain/loss
+        perf_dict['month_net_pnl_av'] = (
+            monthly_data['total_net_profit'].mean())
+        
         # Values still to be worked out
         placeholder_dict = {
-            
             'pessimistic_margin':0.00,
             'adj_pess_margin':0.00,
             'pess_month_avg':0.00,
             'pess_month_variance':0.00,
-            'month_net_pnl_large':0.00,
-            'month_net_pnl_small':0.00,
-            'month_net_pnl_av':0.00,    
             'mod_pess_margin':0.00,
             }
         
@@ -1893,9 +5049,30 @@ class Data():
         
         return max_run_pnl, max_run_count, min_run_pnl, min_run_count, \
             num_runs, av_run_count, av_run_pnl, pnl
-       
+    
+    
+    @staticmethod    
+    def _time_to_recover(df):
+        max_dd_val = min(df['max_dd'])
+        dd_start = df.index.get_loc(df[df['max_dd']==max_dd_val].index[0])
+        if max(df['max_dd'][dd_start:]) == 0:
+            dd_length = (df['max_dd'][dd_start:].values == 0).argmax()
+            return dd_length
+        else:
+            return 'N/A'
 
-    def report_table(self, input_dict):
+
+    @staticmethod
+    def _time_max_gain(df):
+        max_gain_val = max(df['max_gain'])
+        gain_rev = df['max_gain'][::-1]
+        max_gain_loc = gain_rev.index.get_loc(
+            gain_rev[gain_rev==max_gain_val].index[0])
+        gain_length = (gain_rev[max_gain_loc:].values == 0).argmax()
+        return gain_length
+
+
+    def report_table(self, input_dict, reversal):
         """
         Print out backtesting performance results. 
         
@@ -1931,8 +5108,20 @@ class Data():
         # Contract Longname
         print('Contract Name   : {:>10}'.format(input_dict['longname']))
         
-        # Strategy
-        print('Strategy        : {:>10}'.format(input_dict['strategy']))
+        if reversal:
+            # Strategy
+            print('Strategy        : {:>10}'.format(
+                input_dict['strategy_label']))
+
+        else:
+            # Entry Method
+            print('Entry           : {:>10}'.format(input_dict['entry_label']))
+        
+            # Exit Method
+            print('Exit            : {:>10}'.format(input_dict['exit_label']))        
+
+            # Stop Method
+            print('Stop            : {:>10}'.format(input_dict['stop_label']))
         
         # Beginning balance on left
         print('Initial Equity  :     ${:>10}{:>9}{}{:>11}'.format(
@@ -2034,26 +5223,40 @@ class Data():
         # Separating line
         print('-'*78)
     
-        # Open equity
+        # Open and Closed equity 
         print('Open Equity.......... ${:>10}{:<6}{}{:>10}'.format(
             input_dict['open_equity'],
             '',
-            'Open Equity Drawdown.. $',
-            input_dict['open_equity_dd']))    
-        
-        # Max Balance drawback / equity profit
-        print('Max Balance Drawback. ${:>10}{:<6}{}{:>10}'.format(
-            input_dict['max_balance_drawback'],
+            'Closed Equity......... $',
+            input_dict['closed_equity']))
+       
+        # Max Open Equity DD / equity profit
+        print('Max Open Eq. DD...... ${:>10}{:<6}{}{:>10}'.format(
+            input_dict['open_equity_dd'],
             '',
             'Max Equity Profit..... $',
             input_dict['max_equity_profit']))
         
+        # Max Closed Equity DD drawback / Max Equity Gain
+        print('Peak to Trough DD.... ${:>10}{:<6}{}{:>10}'.format(
+            input_dict['max_balance_drawback'],
+            '',
+            'Trough to Peak Gain... $',
+            input_dict['max_gain']))
+                       
         # Max Percent drawdown / gain
         print('Max Drawdown......... %{:>10}{:<6}{}{:>10}'.format(
             input_dict['max_balance_drawback_perc'],
             '',
             'Max Gain.............. %',
             input_dict['max_gain_perc']))        
+        
+        # Time to recover and time for max gain
+        print('Time to Recover (Days) {:>10}{:<6}{}{:>10}'.format(
+            input_dict['time_to_recover'],
+            '',
+            'Time for Max Gain (Days)',
+            input_dict['max_gain_time']))
         
         # Reward / Risk
         print('Reward / Risk........  {:^16}{}{:>10}'.format(
@@ -2099,6 +5302,12 @@ class Data():
             '',
             'Long Only Annual RoR.. %',
             input_dict['annual_long_only_ror']))
+        
+        print('Long Only SPX Net PL. ${:>10}{:<6}{}{:>10}'.format(
+            input_dict['long_only_pnl_spx'],
+            '',
+            'Long Only SPX Ann RoR. %',
+            input_dict['annual_long_only_spx_ror']))       
     
         
         # Key Performance Measures
@@ -2113,6 +5322,13 @@ class Data():
             'Information Ratio.....  ',
             input_dict['information_ratio']))
        
+        # Sortino Ratio & Treynor Ratio
+        print('Sortino Ratio........  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['sortino_ratio'],
+            '',
+            'Treynor Ratio.........  ',
+            input_dict['treynor_ratio']))
+        
         # Calmar Ratio & Average Max Retracement
         print('Calmar Ratio.........  {:>10}{:<6}{}{:>10}'.format(
             input_dict['calmar_ratio'],
@@ -2127,30 +5343,49 @@ class Data():
             'Gain to Pain..........  ',
             input_dict['gain_to_pain']))
        
-        
-        # Distribution statistics
+        # Price Distribution statistics
         print('-'*78)
         print('{:^78}'.format('Data Distribution Statistics'))
         print('-'*78)
         
-        # Mean & Variance
-        print('Mean................. ${:>10}{:<6}{}{:>10}'.format(
-            input_dict['close_mean'],
+        # Mean & Standard Deviation of Prices
+        print('Mean Price........... ${:>10}{:<6}{}{:>10}'.format(
+            input_dict['close_price_mean'],
             '',
-            'Standard Deviation.... $',
-            input_dict['close_std_dev']))
+            'St. Dev. Price........ $',
+            input_dict['close_price_std_dev']))
        
-        # Skewness & Kurtosis
-        print('Skewness.............  {:>10}{:<6}{}{:>10}'.format(
-            input_dict['close_skewness'],
+        # Skewness & Kurtosis of Prices
+        print('Skewness Price.......  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['close_price_skewness'],
             '',
-            'Kurtosis..............  ',
-            input_dict['close_kurtosis']))
-       
-        # Efficiency Ratio
-        print('Efficiency Ratio..... %{:>10}'.format(
-            input_dict['efficiency_ratio']))
+            'Kurtosis Price........  ',
+            input_dict['close_price_kurtosis']))
         
+        
+        # Return Distribution statistics        
+        
+        # Mean & Standard Deviation of Returns
+        print('Mean Return.......... %{:>10}{:<6}{}{:>10}'.format(
+            input_dict['close_return_mean'],
+            '',
+            'St. Dev. Return....... %',
+            input_dict['close_return_std_dev']))
+       
+        # Skewness & Kurtosis of Returns
+        print('Skewness Return......  {:>10}{:<6}{}{:>10}'.format(
+            input_dict['close_return_skewness'],
+            '',
+            'Kurtosis Return.......  ',
+            input_dict['close_return_kurtosis']))
+
+        # Efficiency Ratio & Annualized Volatility
+        print('Efficiency Ratio..... %{:>10}{:<6}{}{:>10}'.format(
+            input_dict['efficiency_ratio'],
+            '',
+            'Annualized Vol........ %',
+            input_dict['close_return_ann_vol']))
+               
         # Closing line
         print('='*78)
 
@@ -2206,8 +5441,8 @@ class Data():
                 key = dicto['symbol']
                 value = dicto['securityname']
                 if database == 'Continuous Futures':
-                    if '_CCB' in key:
-                        self.norgate_name_dict[key] = value
+                    #if '_CCB' in key:
+                    self.norgate_name_dict[key] = value
                 elif database == 'Futures':
                     pass
                 else:
