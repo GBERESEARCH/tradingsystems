@@ -104,13 +104,13 @@ data.test_strategy(ticker='&BRN', lookback=1500, entry_type='4ma', exit_type='sa
 
 A table of results is printed to the console
 
-![Brent_6y_4MA_SAR](images/Brent_6y_4MA_SAR.jpg)
+![Brent_6y_4MA_SAR](images/Brent_6y_4MA_SAR.png)
 
 &nbsp;
 
 Gamestop with a 3MA entry
 
-![GME_3y_3MA_SAR](images/GME_3y_3MA_SAR.jpg)
+![GME_3y_3MA_SAR](images/GME_3y_3MA_SAR.png)
 
 &nbsp;
 
