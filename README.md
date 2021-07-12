@@ -3,6 +3,12 @@
 
 &nbsp;  
 
+### *** Still under development ***
+#### Performance data requires additional fields populated
+#### TBA Dynamic position sizing, Equity / Margin figures need refining
+
+&nbsp;
+
 Entry strategies: 
   - Double MA Crossover
   - Triple MA Crossover
@@ -42,15 +48,6 @@ Stop strategies:
   - Trailing High / Low Stop
 
 &nbsp;
-
-### *** Still under development ***
-#### Performance data requires additional fields populated
-TBA Dynamic position sizing, Equity / Margin figures need refining
-
-
-
-
-&nbsp;  
 
 ### Installation
 Install from PyPI:
