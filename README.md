@@ -3,9 +3,52 @@
 
 &nbsp;  
 
+Entry strategies: 
+  - Double MA Crossover
+  - Triple MA Crossover
+  - Quad MA Crossover
+  - Parabolic SAR
+  - Channel Breakout
+  - Stochastic Crossover
+  - Stochastic Over Under
+  - Stochastic Pop
+  - Relative Strength Index
+  - Commodity Channel Index
+  - Momentum
+  - Volatility
+
+&nbsp;
+
+Exit strategies:
+  - Parabolic SAR
+  - Support / Resistance
+  - Trailing Relative Strength Index
+  - Key Reversal Day
+  - Trailing Stop
+  - Volatility
+  - Stochastic Crossover
+  - Profit Target
+  - High/Low Range
+  - Random
+
+&nbsp;
+
+Stop strategies:
+  - Initial Dollar
+  - Support / Resistance
+  - Immediate Profit
+  - Breakeven
+  - Trailing Close Stop
+  - Trailing High / Low Stop
+
+&nbsp;
+
 ### *** Still under development ***
 #### Performance data requires additional fields populated
-#### Currently only 3MA and 4MA strategies implemented
+TBA Dynamic position sizing, Equity / Margin figures need refining
+
+
+
 
 &nbsp;  
 
@@ -53,9 +96,9 @@ Import tradingsystems and initialize a Data object
 import tradingsystems.systems
 data = systems.Data()
 ```
-Run the Triple MA Cross strategy against Eurostoxx Index data.
+Run the Quad MA Cross entry strategy for 6 years against Brent Crude futures with a Parabolic SAR exit and a Trailing Close Stop.
 ```
-data.test_strategy_3MA(ticker='$STOXX50')
+data.test_strategy(ticker='&BRN', lookback=1500, entry_type='4ma', exit_type='sar', stop_type='trail_close')
 ```
 
 &nbsp;
@@ -64,9 +107,16 @@ data.test_strategy_3MA(ticker='$STOXX50')
 
 A table of results is printed to the console
 
-![performance_analysis](images/performance_analysis.png)
+![Brent_6y_4MA_SAR](images/Brent_6y_4MA_SAR.jpg)
 
 &nbsp;
+
+Gamestop with a 3MA entry
+
+![GME_3y_3MA_SAR](images/GME_3y_3MA_SAR.jpg)
+
+&nbsp;
+
 
 The following volumes served as a reference for some of the methods and report design:
 * [Design, Testing, and Optimization of Trading Systems, Robert Pardo]
