@@ -3,9 +3,11 @@ import datetime as dt
 import math
 import norgatedata
 import numpy as np
+import os
 import pandas as pd
-import systems_params as sp
+import tradingsystems.systems_params as sp
 import random
+import requests
 from decimal import Decimal
 from operator import itemgetter
 from pandas.tseries.offsets import BDay
@@ -188,8 +190,8 @@ class Data():
             The data source to use, either 'norgate' or 'yahoo'. The default 
             is 'norgate'.
         slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
+            The amount of slippage to apply to traded prices in basis points. 
+            The default is 5 bps per unit.
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
@@ -251,7 +253,8 @@ class Data():
     
     
     def test_strategy_exit_stop(
-            self, ticker=None, start_date=None, end_date=None, lookback=None, 
+            self, ticker=None, ccy_1=None, ccy_2=None, asset_type=None, 
+            start_date=None, end_date=None, lookback=None, 
             ma1=None, ma2=None, ma3=None, ma4=None, simple_ma=None, 
             position_size=None, pos_size_fixed=None, source=None, 
             slippage=None, commission=None, strategy=None, entry_type=None, 
@@ -291,8 +294,8 @@ class Data():
             The data source to use, either 'norgate' or 'yahoo'. The default 
             is 'norgate'.
         slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
+            The amount of slippage to apply to traded prices in basis points. 
+            The default is 5 bps per unit.
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
@@ -322,12 +325,14 @@ class Data():
         
         # Basic parameters
         # If data is not supplied as an input, take default values 
-        (ticker, lookback, simple_ma, position_size, pos_size_fixed, source, 
-         slippage, commission, strategy, equity) = itemgetter(
-             'ticker', 'lookback', 'simple_ma', 'position_size', 
-             'pos_size_fixed', 'source', 'slippage', 'commission', 'strategy',
-             'equity')(self._refresh_params_default(
-                 ticker=ticker, lookback=lookback, simple_ma=simple_ma, 
+        (ticker, ccy_1, ccy_2, asset_type, lookback, simple_ma, position_size, 
+         pos_size_fixed, source, slippage, commission, strategy, 
+         equity) = itemgetter(
+             'ticker', 'ccy_1', 'ccy_2', 'asset_type', 'lookback', 'simple_ma', 
+             'position_size', 'pos_size_fixed', 'source', 'slippage', 
+             'commission', 'strategy', 'equity')(self._refresh_params_default(
+                 ticker=ticker, ccy_1=ccy_1, ccy_2=ccy_2, 
+                 asset_type=asset_type, lookback=lookback, simple_ma=simple_ma, 
                  position_size=position_size, pos_size_fixed=pos_size_fixed, 
                  source=source, slippage=slippage, commission=commission, 
                  strategy=strategy, equity=equity))
@@ -357,15 +362,18 @@ class Data():
                  exit_acceleration_factor=exit_acceleration_factor,
                  sip_price=sip_price, 
                  exit_amount=exit_amount, stop_amount=stop_amount))
-       
+        
+                             
         # Set the start and end dates if not provided
         self._date_set(
             start_date=start_date, end_date=end_date, lookback=self.lookback)
         
         # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
         df = self.create_base_data(
-            ticker=self.ticker, start_date=self.start_date, 
-            end_date=self.end_date, source=self.source)
+            ticker=self.ticker, ccy_1=self.ccy_1, ccy_2=self.ccy_2, 
+            start_date=self.start_date, end_date=self.end_date, 
+            lookback=self.lookback, source=self.source, 
+            asset_type=self.asset_type)
 
         # Extract SPX data for Beta calculation
         self.spx = norgatedata.price_timeseries(
@@ -1356,7 +1364,9 @@ class Data():
 
     
     @classmethod
-    def create_base_data(cls, ticker, start_date, end_date, source):
+    def create_base_data(
+            cls, ticker=None, ccy_1=None, ccy_2=None, start_date=None, 
+            end_date=None, lookback=None, source=None, asset_type=None):
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
 
@@ -1397,9 +1407,16 @@ class Data():
         
             return df
         
+        elif source == 'alpha':
+            df = cls._return_alphavantage_data(
+                ccy_1=ccy_1, ccy_2=ccy_2, ticker=ticker, asset_type=asset_type, 
+                lookback=lookback)
+            
+            return df
+                
         # Otherwise return error message
         else:
-            print('Choose norgate or yahoo as data source')
+            print('Select a data source from yahoo, norgate or alpha')
             
     
     @staticmethod
@@ -1449,6 +1466,127 @@ class Data():
         
         # Set Index to Datetime
         df.index = pd.to_datetime(df.index)
+        
+        return df
+
+
+    @staticmethod
+    def _return_alphavantage_data(
+            ccy_1=None, ccy_2=None, ticker=None, asset_type=None, 
+            lookback=None):
+
+        api_key = os.getenv('ALPHAVANTAGE_API_KEY')
+
+        base_url = 'https://www.alphavantage.co/query?'
+        
+        # FX pair
+        if asset_type == 'fx':
+            params = {'function': 'FX_DAILY',
+                      'from_symbol': ccy_1,
+                      'to_symbol': ccy_2, 
+                      'outputsize':'full',
+                      'apikey': api_key}
+        
+            response = requests.get(base_url, params=params)
+            response_dict = response.json()
+            
+            _, header = response.json()
+            
+            #Convert to pandas dataframe
+            df = pd.DataFrame.from_dict(response_dict[header], orient='index')
+            
+            #Clean up column names
+            df_cols = [i.split(' ')[1].title() for i in df.columns]
+            df.columns = df_cols
+            
+            # Set datatype to float
+            df = df.astype(float)
+            
+            
+        # Cryptocurrency        
+        elif asset_type == 'crypto':
+            params = {'function': 'DIGITAL_CURRENCY_DAILY',
+                      'symbol': ccy_1,
+                      'market': ccy_2,
+                      'apikey': api_key}
+            
+            response = requests.get(base_url, params=params)
+            response_dict = response.json()
+            
+            _, header = response.json()
+            
+            #Convert to pandas dataframe
+            df = pd.DataFrame.from_dict(response_dict[header], orient='index')
+            
+            # Select the USD OHLC columns
+            df = df[
+                [df.columns[1], df.columns[3], df.columns[5], df.columns[7]]]
+            
+            # Set column names
+            df.columns = ['Open', 'High', 'Low', 'Close']
+                        
+            # Set datatype to float
+            df = df.astype(float)
+            
+            
+        # Equity Single stock or Index
+        elif asset_type == 'equity':
+            params = {'function': 'TIME_SERIES_DAILY_ADJUSTED',
+                      'symbol': ticker,
+                      'outputsize':'full',
+                      'apikey': api_key}
+
+            response = requests.get(base_url, params=params)
+            response_dict = response.json()
+            
+            _, header = response.json()
+            
+            #Convert to pandas dataframe
+            df = pd.DataFrame.from_dict(response_dict[header], orient='index')
+           
+            #Clean up column names
+            df_cols = [i.split(' ')[1].title() for i in df.columns]
+            df.columns = df_cols
+
+            # Set datatype to float
+            df = df.astype(float)
+            
+            # Calculate stock split multiplier
+            df['split_mult'] = np.array([1.0]*len(df))
+            for row in range(1, len(df)):
+                if df['Split'][row] == 1:
+                    df['split_mult'][row] = df['split_mult'][row-1]
+                else:
+                    df['split_mult'][row] = (df['split_mult'][row-1] 
+                                             * df['Split'][row])
+
+            # Adjust OHLC prices for splits
+            df['O'] = np.round(df['Open'] / df['split_mult'], 2) 
+            df['H'] = np.round(df['High'] / df['split_mult'], 2)
+            df['L'] = np.round(df['Low'] / df['split_mult'], 2)
+            df['C'] = np.round(df['Close'] / df['split_mult'], 2)
+            
+            # Select only OHLC columns
+            df = df[['O', 'H', 'L', 'C']]
+                        
+            # Set column names
+            df.columns = ['Open', 'High', 'Low', 'Close']
+
+
+        # Otherwise raise an error
+        else:
+            raise ValueError("Please enter a valid asset type")
+        
+        
+        # Set Index to Datetime
+        df.index = pd.to_datetime(df.index)
+
+        # Sort data in ascending order
+        df = df[::-1]
+        
+        # Trim data to length of the specified lookback
+        if lookback < len(df):
+            df = df[-lookback:]
         
         return df
 
@@ -1885,7 +2023,8 @@ class Data():
         start : Int
             The first valid row to start calculating signals from.
         position_signal : Series
-            Series of whether to be long, short or neutral on the following date.
+            Series of whether to be long, short or neutral on the following 
+            date.
         trade_signal : Series
             Series indicating when buy or sell decisions should be made the 
             following day.
@@ -3843,8 +3982,8 @@ class Data():
         position_size : Int, optional
             The number of units to trade. The default is 100.
         slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
+            The amount of slippage to apply to traded prices in basis points. 
+            The default is 5 bps per unit.
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
@@ -3880,8 +4019,8 @@ class Data():
         df : DataFrame
             The OHLC data and trades signals.
         slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
+            The amount of slippage to apply to traded prices in basis points. 
+            The default is 5 bps per unit.
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
@@ -3916,8 +4055,8 @@ class Data():
         df : DataFrame
             The OHLC data and trades signals.
         slippage : Float, optional
-            The amount of slippage to apply to traded prices. The default is 
-            $0.05 per unit.
+            The amount of slippage to apply to traded prices in basis points. 
+            The default is 5 bps per unit.
         commission : Float, optional
             The amount of commission charge to apply to each trade. The 
             default is $0.00.
@@ -3934,6 +4073,7 @@ class Data():
         close = df['Close']
         pos = df['position']
         
+                
         # Create array of zeros 
         day_pnl = np.array([0]*len(close), dtype=float)
         last_day_trade_pnl = np.array([0]*len(close), dtype=float)
@@ -3956,8 +4096,9 @@ class Data():
                     # the difference between todays open and yesterdays close
                     # less the cost of slippage and commission
                     day_pnl[row] = (
-                        pos[row - 1] * (open[row] - close[row - 1]) - 
-                        abs(pos[row - 1] * slippage)) - commission
+                        (pos[row - 1] * (open[row] - close[row - 1]) 
+                         - abs(pos[row - 1] * slippage * 0.0001 * open[row])) 
+                        - commission)
             
             # If the current position is not flat
             else:
@@ -3972,11 +4113,13 @@ class Data():
                 # If the position is reversed from the previous day
                 elif pos[row] == (-1) * pos[row - 1]:
                     day_pnl[row] = (
-                        pos[row] * (close[row] - open[row]) - 
-                        abs(pos[row] * slippage)) - commission
+                        (pos[row] * (close[row] - open[row]) 
+                         - abs(pos[row] * slippage * 0.0001 * open[row])) 
+                        - commission)
                     last_day_trade_pnl[row] = (
-                        pos[row - 1] * (open[row] - close[row - 1]) - 
-                        abs(pos[row - 1] * slippage)) - commission
+                        (pos[row - 1] * (open[row] - close[row - 1]) 
+                         - abs(pos[row - 1] * slippage * 0.0001 * open[row])) 
+                        - commission)
                 
                 # If the position was opened from flat
                 else:
@@ -3985,8 +4128,9 @@ class Data():
                     # between todays open and todays close less the cost of 
                     # slippage and commission
                     day_pnl[row] = (
-                        pos[row] * (close[row] - open[row]) - 
-                        abs(pos[row] * slippage)) - commission
+                        (pos[row] * (close[row] - open[row]) 
+                         - abs(pos[row] * slippage * 0.0001 * open[row])) 
+                        - commission)
         
         # Create daily pnl column in DataFrame, rounding to 2dp            
         df['current_trade_pnl'] = np.round(day_pnl, 2)    
@@ -4483,7 +4627,10 @@ class Data():
         perf_dict = {}
         
         # Contract and strategy details
-        perf_dict['contract'] = self.ticker
+        if self.source == 'alpha' and self.asset_type in ['fx', 'crypto']:
+            perf_dict['contract'] = self.ccy_1+self.ccy_2
+        else:
+            perf_dict['contract'] = self.ticker
 
         # Reversal strategy has only a single label
         if reversal:
@@ -4502,7 +4649,7 @@ class Data():
         if self.source == 'norgate':
             perf_dict['longname'] = self.norgate_name_dict[self.ticker]
         else:
-            perf_dict['longname'] = self.ticker
+            perf_dict['longname'] = perf_dict['contract']
         
         # Slippage and commission in dollars
         perf_dict['slippage'] = self.slippage
