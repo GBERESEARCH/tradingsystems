@@ -2070,11 +2070,14 @@ class Data():
                 # If the fastest MA crosses below the second fastest MA
                 elif ma_1[row] < ma_2[row] and ma_1[row - 1] > ma_2[row - 1]:
                     
-                    # Set the position signal to flat
-                    position_signal[row] = 0                    
-                        
-                    # Signal to close out long
-                    trade_signal[row] = -1
+                    # If there is a position on
+                    if position_signal[row-1] != 0:
+                    
+                        # Set the position signal to flat
+                        position_signal[row] = 0                    
+                            
+                        # Signal to close out long
+                        trade_signal[row] = -1
                     
                 # Otherwise, take no action
                 else:                
@@ -2097,11 +2100,14 @@ class Data():
                 # If the fastest MA crosses above the second fastest MA
                 elif ma_1[row] > ma_2[row] and ma_1[row - 1] < ma_2[row - 1]:
     
-                    # Set the position to flat
-                    position_signal[row] = 0
+                    # If there is a position on
+                    if position_signal[row-1] != 0:
+
+                        # Set the position to flat
+                        position_signal[row] = 0
     
-                    # Signal to close out short
-                    trade_signal[row] = 1
+                        # Signal to close out short
+                        trade_signal[row] = 1
                     
                 # Otherwise, take no action
                 else:                
@@ -2326,12 +2332,12 @@ class Data():
             # multiplied by the acceleration factor
             af_x_diff[row] =  ep_sar_diff[row] * af[row]
         
-        df['sar'] = sar
-        df['direction_sar'] = direction
-        df['ep_sar'] = ep
-        df['af_sar'] = af
-        df['ep_sar_diff'] = ep_sar_diff
-        df['af_x_diff'] = af_x_diff        
+        df['sar_entry'] = sar
+        df['direction_sar_entry'] = direction
+        df['ep_sar_entry'] = ep
+        df['af_sar_entry'] = af
+        df['ep_sar_diff_entry'] = ep_sar_diff
+        df['af_x_diff_entry'] = af_x_diff        
         
         return df, start, trade_signal
  
@@ -2395,8 +2401,8 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df['entry_rolling_high_close'] = rolling_high_close
-        df['entry_rolling_low_close'] = rolling_low_close 
+        df['rolling_high_close_entry'] = rolling_high_close
+        df['rolling_low_close_entry'] = rolling_low_close 
         
         return df, start, trade_signal
     
@@ -2430,10 +2436,6 @@ class Data():
         # Create Stochastics for the specified time period
         slow_k, slow_d = Indicators.stochastic(
             df['High'], df['Low'], df['Close'], fast_k_period=time_period)
-   
-        # Create the column labels using the time period
-        slow_k_label = "Stoch_k_"+str(time_period)+"_entry"
-        slow_d_label = "Stoch_d_"+str(time_period)+"_entry"
     
         # Create start point based on slow d
         start = np.where(~np.isnan(slow_d))[0][0]
@@ -2476,8 +2478,8 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df[slow_k_label] = slow_k
-        df[slow_d_label] = slow_d        
+        df['slow_k_entry'] = slow_k
+        df['slow_d_entry'] = slow_d        
    
         return df, start, trade_signal
 
@@ -2511,10 +2513,6 @@ class Data():
         # Create Stochastics for the specified time period
         slow_k, slow_d = Indicators.stochastic(
             df['High'], df['Low'], df['Close'], fast_k_period=time_period)
-   
-        # Create the column labels using the time period
-        slow_k_label = "Stoch_k_"+str(time_period)+"_entry"
-        slow_d_label = "Stoch_d_"+str(time_period)+"_entry"
     
         # Create start point based on slow d
         start = np.where(~np.isnan(slow_d))[0][0]
@@ -2573,8 +2571,8 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df[slow_k_label] = slow_k
-        df[slow_d_label] = slow_d        
+        df['slow_k_entry'] = slow_k
+        df['slow_d_entry'] = slow_d         
    
         return df, start, trade_signal    
     
@@ -2608,10 +2606,6 @@ class Data():
         # Create Stochastics for the specified time period
         slow_k, slow_d = Indicators.stochastic(
             df['High'], df['Low'], df['Close'], fast_k_period=time_period)
-   
-        # Create the column labels using the time period
-        slow_k_label = "Stoch_k_"+str(time_period)+"_entry"
-        slow_d_label = "Stoch_d_"+str(time_period)+"_entry"
     
         # Create start point based on slow d
         start = np.where(~np.isnan(slow_d))[0][0]
@@ -2672,8 +2666,8 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df[slow_k_label] = slow_k
-        df[slow_d_label] = slow_d        
+        df['slow_k_entry'] = slow_k
+        df['slow_d_entry'] = slow_d           
    
         return df, start, trade_signal    
     
@@ -2706,9 +2700,6 @@ class Data():
         """
         # Create RSI for the specified time period
         rsi = Indicators.RSI(df['Close'], time_period)
-        
-        # Create the column label using the time period
-        rsi_label = "RSI_"+str(time_period)+"_entry"
     
         # Create start point based on lookback window
         start = np.where(~np.isnan(rsi))[0][0]
@@ -2745,7 +2736,7 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df[rsi_label] = rsi
+        df['RSI_entry'] = rsi
    
         return df, start, trade_signal
     
@@ -2778,9 +2769,6 @@ class Data():
         # Create CCI for the specified time period
         cci = Indicators.CCI(df['High'], df['Low'], df['Close'], time_period)
         
-        # Create the column label using the time period
-        cci_label = "CCI_"+str(time_period)+"_entry"
-    
         # Create start point based on lookback window
         start = np.where(~np.isnan(cci))[0][0]
             
@@ -2816,7 +2804,7 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df[cci_label] = cci
+        df['CCI_entry'] = cci
    
         return df, start, trade_signal
     
@@ -2912,9 +2900,6 @@ class Data():
         """
         # Create ATR for the specified time period
         atr = Indicators.ATR(df['High'], df['Low'], df['Close'], time_period)
-        
-        # Create the column label using the time period
-        atr_label = "ATR_"+str(time_period)+"_entry"
     
         # Create start point based on lookback window
         start = np.where(~np.isnan(atr))[0][0]
@@ -2951,7 +2936,7 @@ class Data():
                 trade_signal[row] = 0
                 position_signal[row] = position_signal[row-1]
     
-        df[atr_label] = atr
+        df['ATR_entry'] = atr
    
         return df, start, trade_signal
     
@@ -3058,9 +3043,9 @@ class Data():
                     sar[row] = 0
                     parabolic_sar_exit[row] = 0
                     
-        df['rolling_high_close_sar'] = rolling_high_close            
-        df['rolling_low_close_sar'] = rolling_low_close
-        df['sar'] = sar
+        df['rolling_high_close_sar_exit'] = rolling_high_close            
+        df['rolling_low_close_sar_exit'] = rolling_low_close
+        df['sar_exit'] = sar
                     
         return df, parabolic_sar_exit 
     
@@ -3096,8 +3081,6 @@ class Data():
         """
        
         rsi = Indicators.RSI(close=df['Close'], time_period=time_period)
-
-        rsi_label = "RSI_"+str(time_period)+"_exit"
         
         rsi_trail_exit = np.array([0]*len(df))
         
@@ -3118,7 +3101,7 @@ class Data():
                 else:
                     rsi_trail_exit[row] = 0
         
-        df[rsi_label] = rsi
+        df['RSI_exit'] = rsi
                     
         return df, rsi_trail_exit
     
@@ -3182,9 +3165,6 @@ class Data():
     
         atr = Indicators.ATR(df['High'], df['Low'], df['Close'], time_period)
         
-        # Create the column label using the time period
-        atr_label = "ATR_"+str(time_period)+"_exit"
-        
         for row in range(1, len(df)):
             if trade_number[row] != 0:
                 if end_of_day_position[row] > 0:
@@ -3203,7 +3183,7 @@ class Data():
                 else:
                     volatility_exit[row] = 0
                         
-        df[atr_label] = atr
+        df['ATR_exit'] = atr
                    
         return df, volatility_exit
     
@@ -3266,7 +3246,7 @@ class Data():
                     else:
                         random_exit[row] = 0
         
-        df['exit_days'] = exit_days        
+        df['random_days_exit'] = exit_days        
                         
         return df, random_exit
     
@@ -3499,8 +3479,8 @@ class Data():
                 else:
                     support_resistance_exit[row] = 0
         
-        df['rolling_high_close_sr'] = rolling_high_close
-        df['rolling_low_close_sr'] = rolling_low_close
+        df['rolling_high_close_sr_exit'] = rolling_high_close
+        df['rolling_low_close_sr_exit'] = rolling_low_close
                     
         return df, support_resistance_exit                 
     
