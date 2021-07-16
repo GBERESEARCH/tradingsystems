@@ -5099,6 +5099,10 @@ class Data():
                 
                 # Add the trade pnl to the winning / losing trades run list 
                 run_trades_list.append(trade[1])
+                
+                # If this is the last trade
+                if num == len(input_trades_list) - 1:
+                    total_run_trades_list.append(run_trades_list)
             
             # Otherwise, if the trade number is next in sequence after the 
             # last stored trade number
@@ -5112,6 +5116,10 @@ class Data():
                 
                 # Add the trade pnl to the winning / losing trades run list
                 run_trades_list.append(trade[1])
+                
+                # If this is the last trade
+                if num == len(input_trades_list) - 1:
+                    total_run_trades_list.append(run_trades_list)    
         
             # If the trade is not the next in sequence:
             else:
@@ -5155,25 +5163,31 @@ class Data():
             max_run_count = pnl[-1][-1]
             min_run_pnl = pnl[0][0]
             min_run_count = pnl[0][-1]
-    
+            
         # Values to select for losing runs
         else:
             max_run_pnl = pnl[0][0]
             max_run_count = pnl[0][-1]
             min_run_pnl = pnl[-1][0]
             min_run_count = pnl[-1][-1]
-            
+                                        
         # Count number of runs as the length of the pnl list     
         num_runs = len(pnl)
         
         # Take the average number of runs as the sum of run lengths in pnl 
         # tuple divided by the number of runs
-        av_run_count = int(np.round(sum(j for i, j in pnl) / len(pnl), 0))
+        try:
+            av_run_count = int(np.round(sum(j for i, j in pnl) / len(pnl), 0))
+        except:
+            av_run_count = 0
         
         # Take the average run pnl as the sum of run pnls in pnl tuple
         # divided by the number of runs
-        av_run_pnl = np.round(sum(i for i, j in pnl) / len(pnl), 2)    
-        
+        try:
+            av_run_pnl = np.round(sum(i for i, j in pnl) / len(pnl), 2)    
+        except:
+            av_run_pnl = 0
+            
         return max_run_pnl, max_run_count, min_run_pnl, min_run_count, \
             num_runs, av_run_count, av_run_pnl, pnl
     
