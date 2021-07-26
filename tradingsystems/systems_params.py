@@ -1,10 +1,14 @@
-# Dictionary containing all the default parameters
+"""
+Dictionary containing all the default parameters
+
+"""
+
 system_params_dict = {
     'df_profit_factor':2,
     'df_profit_bars':2,
     'df_stop_bars':2,
     'df_exit_factor':2,
-    'df_equity':100000.00,    
+    'df_equity':100000.00,
     'df_ticker':'$SPX',
     'df_bench_ticker':'$SPX',
     'df_ccy_1':'GBP',
@@ -20,7 +24,7 @@ system_params_dict = {
     'df_pos_size_fixed':True,
     'df_ticker_source':'norgate',
     'df_bench_source':'norgate',
-    'df_slippage':5,
+    'df_slippage':5.0,
     'df_commission':0.00,
     'df_riskfree':0.0025,
     'df_entry_type':'2ma',
@@ -28,7 +32,7 @@ system_params_dict = {
     'df_stop_type':'initial_dollar',
     'df_entry_period':14,
     'df_exit_period':5,
-    'df_stop_period':5, 
+    'df_stop_period':5,
     'df_entry_threshold':0,
     'df_exit_threshold':0,
     'df_exit_amount':3000.00,
@@ -37,18 +41,18 @@ system_params_dict = {
     'df_entry_overbought':75,
     'df_exit_oversold':25,
     'df_exit_overbought':75,
-    'df_entry_acceleration_factor':0.02,    
+    'df_entry_acceleration_factor':0.02,
     'df_exit_acceleration_factor':0.02,
     'df_sip_price':False,
     'df_signals':True,
-    
-    # Columns names used for strategy indicators 
+
+    # Columns names used for strategy indicators
     'df_entry_signal_indicators':{'2ma':('ma_1','ma_2'),
                                   '3ma':('ma_1','ma_2', 'ma_3'),
                                   '4ma':('ma_1','ma_2', 'ma_3', 'ma_4'),
                                   'sar':'sar_entry',
                                   'channel_breakout':(
-                                      'rolling_low_close_entry', 
+                                      'rolling_low_close_entry',
                                       'rolling_high_close_entry'),
                                   'stoch_cross':(
                                       'slow_k_entry', 'slow_d_entry'),
@@ -60,7 +64,7 @@ system_params_dict = {
                                   'cci':'CCI_entry',
                                   'momentum':'momentum',
                                   'volatility':'ATR_entry'},
-    
+
     # Signals requiring changes to default parameters
     'df_entry_signal_labels':{'2ma':('Double ','MA Crossover'),
                               '3ma':('Triple ','MA Crossover'),
@@ -74,7 +78,7 @@ system_params_dict = {
                               'cci':'Commodity Channel Index',
                               'momentum':'Momentum',
                               'volatility':'Volatility'},
-    
+
     'df_exit_signal_labels':{'sar':'Parabolic SAR',
                              'sup_res':'Support / Resistance',
                              'rsi_trail':'Trailing Relative Strength Index',
@@ -85,14 +89,14 @@ system_params_dict = {
                              'profit_target':'Profit Target',
                              'nday_range':'High/Low Range',
                              'random':'Random'},
-                                 
+
     'df_stop_signal_labels':{'initial_dollar':'Initial Dollar',
                              'sup_res':'Support / Resistance',
                              'immediate_profit':'Immediate Profit',
                              'breakeven':'Breakeven',
                              'trail_close':'Trailing Close Stop',
                              'trail_high_low':'Trailing High / Low Stop'},
- 
+
     # Signal parameter values differing from standard defaults
     'df_entry_signal_dict':{'2ma':{'ma1':9,
                                    'ma2':18},
@@ -125,7 +129,7 @@ system_params_dict = {
                                         'entry_threshold':0},
                             'volatility':{'entry_period':10,
                                           'entry_threshold':1.5}},
-     
+
     'df_exit_signal_dict':{'sar':{'exit_period':5,
                                   'exit_acceleration_factor':0.02,
                                   'sip_price':True},
@@ -147,7 +151,6 @@ system_params_dict = {
                            'sup_res':{'stop_period':20},
                            'immediate_profit':{'stop_period':5},
                            'breakeven':{'stop_amount':1500.00},
-                           'trail_close':{'stop_amount':1500.00}, 
+                           'trail_close':{'stop_amount':1500.00},
                            'trail_high_low':{'stop_amount':1500.00}}
     }
-
