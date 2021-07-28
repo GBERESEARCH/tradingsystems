@@ -18,12 +18,8 @@ class PerfReport():
 
     """
 
-    @staticmethod
-    def performance_data(
-            prices, monthly_data, ticker_source, asset_type, ccy_1,
-            ccy_2, ticker, entry_label, exit_label,
-            stop_label, norgate_name_dict, slippage, commission, position_size,
-            benchmark, benchmark_position_size, riskfree):
+    @classmethod
+    def performance_data(cls, tables, params, labels, norgate_name_dict):
         """
         Create dictionary of performance data.
 
@@ -78,34 +74,11 @@ class PerfReport():
         # Create empty dictionary
         perf_dict = {}
 
-        # Contract and strategy details
-        if (ticker_source == 'alpha'
-            and asset_type in ['fx', 'crypto']):
-            perf_dict['contract'] = ccy_1 + ccy_2
-        else:
-            perf_dict['contract'] = ticker
+        prices = tables['prices']
 
-        # Entry, exit and stop labels
-        perf_dict['entry_label'] = entry_label
-        perf_dict['exit_label'] = exit_label
-        perf_dict['stop_label'] = stop_label
-
-        # Initial Equity
-        perf_dict['initial_equity'] = prices['mtm_equity'].iloc[0]
-
-        # Set Ticker Longname
-        if ticker_source == 'norgate':
-            perf_dict['longname'] = norgate_name_dict[ticker]
-        else:
-            perf_dict['longname'] = perf_dict['contract']
-
-        # Slippage and commission in dollars
-        perf_dict['slippage'] = slippage
-        perf_dict['commission'] = commission
-
-        # Start and end dates
-        perf_dict['start_date'] = prices.index[0].date().strftime("%d/%m/%y")
-        perf_dict['end_date'] = prices.index[-1].date().strftime("%d/%m/%y")
+        perf_dict = cls._perf_data_init(
+            perf_dict=perf_dict, prices=prices, params=params, labels=labels,
+            norgate_name_dict=norgate_name_dict)
 
         # Maximum margin required
         perf_dict['margin'] = math.ceil(
@@ -115,14 +88,16 @@ class PerfReport():
         perf_dict['net_pnl'] = prices['total_pnl'].iloc[-1]
 
         # Convert the start and end date strings to dates
-        start = dt.datetime.strptime(perf_dict['start_date'], "%d/%m/%y")
-        end = dt.datetime.strptime(perf_dict['end_date'], "%d/%m/%y")
+        perf_dict['start'] = dt.datetime.strptime(
+            perf_dict['start_date'], "%d/%m/%y")
+        perf_dict['end'] = dt.datetime.strptime(
+            perf_dict['end_date'], "%d/%m/%y")
 
         # Number of days between start and end dates
-        period = (end-start).days
+        perf_dict['period'] = (perf_dict['end']-perf_dict['start']).days
 
         # Set the return period in years
-        perf_dict['return_period'] = period / 365
+        perf_dict['return_period'] = perf_dict['period'] / 365
 
         # Annualized profit
         perf_dict['annualized_profit '] = (
@@ -137,108 +112,23 @@ class PerfReport():
             (1 + perf_dict['total_return_rate'])
             ** (1 / perf_dict['return_period']) - 1)
 
-        # Calculate trade data
-        trades, perf_dict['total_trades'], trades_win_dict, trades_win_list, \
-            trades_loss_dict, trades_loss_list = Profit.trade_data(prices)
-
-        # number of wins and losses
-        perf_dict['num_wins'] = len(trades_win_dict)
-        perf_dict['num_losses'] = len(trades_loss_dict)
-
-        # Sum of all profits
-        perf_dict['total_profit'] = np.round(sum(trades_win_dict.values()), 2)
-
-        # Sum of all losses
-        perf_dict['total_loss'] = np.round(sum(trades_loss_dict.values()), 2)
-
-        # Percentage of winning trades
-        perf_dict['win_percent'] = int(
-            np.round(perf_dict['num_wins'] / len(trades) * 100, 0))
-
-        # Percentage of losing trades
-        perf_dict['loss_percent'] = int(
-            np.round(perf_dict['num_losses'] / len(trades) * 100, 0))
-
-
-        # If there are winning trades
-        if trades_win_dict.values():
-
-            # Max winning trade
-            perf_dict['max_win'] = np.round(max(trades_win_dict.values()), 2)
-
-            # Min winning trade
-            perf_dict['min_win'] = np.round(min(trades_win_dict.values()), 2)
-
-            # Average winning trade
-            perf_dict['av_win'] = np.round(
-                sum(trades_win_dict.values()) / len(trades_win_list), 2)
-
-            # standard deviation of winning trades
-            perf_dict['std_wins'] = np.round(np.std(trades_win_list), 2)
-
-        # Otherwise set these to zero
-        else:
-            perf_dict['max_win'] = 0
-            perf_dict['min_win'] = 0
-            perf_dict['av_win'] = 0
-            perf_dict['std_wins'] = 0
-
-
-        # If there are losing trades
-        if trades_loss_dict.values():
-
-            # Max losing trade
-            perf_dict['max_loss'] = min(trades_loss_dict.values())
-
-            # Min losing trade
-            perf_dict['min_loss'] = max(trades_loss_dict.values())
-
-            # average losing trade
-            perf_dict['av_loss'] = np.round(
-                sum(trades_loss_dict.values()) / len(trades_loss_list), 2)
-
-            # standard deviation of losing trades
-            perf_dict['std_losses'] = np.round(np.std(trades_loss_list), 2)
-
-        # Otherwise set these to zero
-        else:
-            perf_dict['max_loss'] = 0
-            perf_dict['min_loss'] = 0
-            perf_dict['av_loss'] = 0
-            perf_dict['std_losses'] = 0
-
-
-        # Maximum win/loss ratio
-        perf_dict['max_win_loss_ratio'] = np.round(
-            abs(perf_dict['max_win'] / perf_dict['max_loss']), 2)
-
-
-        # Minimum win/loss ratio
-        perf_dict['min_win_loss_ratio'] = np.round(
-            abs(perf_dict['min_win'] / perf_dict['min_loss']), 2)
-
-
-        # avwin / avloss
-        perf_dict['av_win_loss_ratio'] = np.round(
-            abs(perf_dict['av_win'] / perf_dict['av_loss']), 2)
-
-        # average trade
-        perf_dict['av_trade'] = np.round(perf_dict['net_pnl'] / len(trades), 2)
+        perf_dict = cls._perf_data_trades(perf_dict=perf_dict, tables=tables)
 
         # Pessimistic Return on Margin
-        adjusted_gross_profit = perf_dict['av_win'] * (
+        perf_dict['adjusted_gross_profit'] = perf_dict['av_win'] * (
             perf_dict['num_wins'] - np.round(np.sqrt(perf_dict['num_wins'])))
-        adjusted_gross_loss = perf_dict['av_loss'] * (
+        perf_dict['adjusted_gross_loss'] = perf_dict['av_loss'] * (
             perf_dict['num_losses'] - np.round(
                 np.sqrt(perf_dict['num_losses'])))
         perf_dict['prom'] = np.round(
-            (adjusted_gross_profit - adjusted_gross_loss) /
+            (perf_dict['adjusted_gross_profit']
+             - perf_dict['adjusted_gross_loss']) /
             perf_dict['margin'], 2)
 
         # PROM minus biggest win
         perf_dict['prom_minus_max_win'] = np.round(
-            (adjusted_gross_profit - perf_dict['max_win']
-             - adjusted_gross_loss) / perf_dict['margin'], 2)
+            (perf_dict['adjusted_gross_profit'] - perf_dict['max_win']
+             - perf_dict['adjusted_gross_loss']) / perf_dict['margin'], 2)
 
         # Perfect profit - Buy every dip & sell every peak
         perf_dict['perfect_profit'] = prices['total_perfect_profit'].iloc[-1]
@@ -248,26 +138,19 @@ class PerfReport():
             (perf_dict['net_pnl'] / perf_dict['perfect_profit']) * 100, 2)
 
         # Winning run data
-        perf_dict['max_win_run_pnl'], perf_dict['max_win_run_count'], \
-            perf_dict['min_win_run_pnl'], perf_dict['min_win_run_count'], \
-                perf_dict['num_win_runs'], perf_dict['av_win_run_count'], \
-                    perf_dict['av_win_run_pnl'], \
-                        perf_dict['win_pnl'] = Profit.trade_runs(
-                            trades_win_list, run_type='win')
+        perf_dict['win_run_dict'] = Profit.trade_runs(
+            perf_dict['trade_data_dict']['trades_win_list'], run_type='win')
 
         # Losing run data
-        perf_dict['max_loss_run_pnl'], perf_dict['max_loss_run_count'], \
-            perf_dict['min_loss_run_pnl'], perf_dict['min_loss_run_count'], \
-                perf_dict['num_loss_runs'], perf_dict['av_loss_run_count'], \
-                    perf_dict['av_loss_run_pnl'], \
-                        perf_dict['loss_pnl'] = Profit.trade_runs(
-                            trades_loss_list, run_type='loss')
+        perf_dict['loss_run_dict'] = Profit.trade_runs(
+            perf_dict['trade_data_dict']['trades_loss_list'], run_type='loss')
 
         # Maximum Equity drawdown
         perf_dict['max_balance_drawback'] = np.round(min(prices['max_dd']), 2)
 
         # Maximum Equity drawdown in percentage terms
-        perf_dict['max_balance_drawback_perc'] = min(prices['max_dd_perc']) * 100
+        perf_dict['max_balance_drawback_perc'] = min(
+            prices['max_dd_perc']) * 100
 
         # Time to recover from Max Drawdown
         perf_dict['time_to_recover'] = Profit.time_to_recover(prices)
@@ -295,8 +178,9 @@ class PerfReport():
 
         # Mathematical Advantage
         perf_dict['mathematical_advantage'] = np.round(
-            (perf_dict['num_wins'] / len(trades) * 100) * (
-                perf_dict['profit_factor'] + 1) - 100, 2)
+            (perf_dict['num_wins']
+             / len(perf_dict['trade_data_dict']['trades']) * 100)
+            * (perf_dict['profit_factor'] + 1) - 100, 2)
 
         # Get the index of the first trade entry
         # Select just the rows of the first trade from the DataFrame
@@ -310,8 +194,9 @@ class PerfReport():
 
         # Return of a buy and hold strategy since the first trade entry
         perf_dict['long_only_pnl'] = (
-            (prices['Close'].iloc[-1] - prices['Open'].iloc[first_trade_start]) *
-            position_size)
+            (prices['Close'].iloc[-1]
+             - prices['Open'].iloc[first_trade_start]) *
+            params['position_size'])
 
         # Annual Rate of return of buy and hold
         perf_dict['annual_long_only_ror'] = (
@@ -320,23 +205,221 @@ class PerfReport():
 
         # Return of a buy and hold strategy of SPX since the first trade entry
         perf_dict['long_only_pnl_spx'] = (
-            (benchmark['Close'].iloc[-1]
-             - benchmark['Open'].iloc[first_trade_start]) *
-            benchmark_position_size)
+            (tables['benchmark']['Close'].iloc[-1]
+             - tables['benchmark']['Open'].iloc[first_trade_start]) *
+            params['benchmark_position_size'])
 
         # Annual Rate of return of buy and hold of SPX
         perf_dict['annual_long_only_spx_ror'] = (
             (perf_dict['long_only_pnl_spx'] / perf_dict['return_period']) /
             perf_dict['initial_equity']) * 100
 
+        perf_dict = cls._perf_data_stat_measures(
+            perf_dict=perf_dict, tables=tables, params=params)
+
+        # Maximum MTM Equity Profit
+        perf_dict['max_equity_profit'] = (
+            prices['max_mtm_equity'].iloc[-1] - perf_dict['initial_equity'])
+
+        # Largest open equity drawdown
+        perf_dict['open_equity_dd'] = (prices['trade_pnl_drawback'].max())*(-1)
+
+        # Open equity
+        perf_dict['open_equity'] = prices['open_equity'].iloc[-1]
+
+        # Closed equity
+        perf_dict['closed_equity'] = prices['closed_equity'].iloc[-1]
+
+        # Largest monthly gain
+        perf_dict['month_net_pnl_large'] = (
+            tables['monthly_data']['total_net_profit'].max())
+
+        # Largest monthly loss
+        perf_dict['month_net_pnl_small'] = (
+            tables['monthly_data']['total_net_profit'].min())
+
+        # Average monthly gain/loss
+        perf_dict['month_net_pnl_av'] = (
+            tables['monthly_data']['total_net_profit'].mean())
+
+        # Values still to be worked out
+        placeholder_dict = {
+            'pessimistic_margin':0.00,
+            'adj_pess_margin':0.00,
+            'pess_month_avg':0.00,
+            'pess_month_variance':0.00,
+            'mod_pess_margin':0.00,
+            }
+
+        perf_dict.update(placeholder_dict)
+
+        return perf_dict
+
+
+    @staticmethod
+    def _perf_data_init(perf_dict, prices, params, labels, norgate_name_dict):
+
+        # Contract and strategy details
+        if (params['ticker_source'] == 'alpha'
+            and params['asset_type'] in ['fx', 'crypto']):
+            perf_dict['contract'] = params['ccy_1'] + params['ccy_2']
+        else:
+            perf_dict['contract'] = params['ticker']
+
+        # Entry, exit and stop labels
+        perf_dict['entry_label'] = labels['entry_label']
+        perf_dict['exit_label'] = labels['exit_label']
+        perf_dict['stop_label'] = labels['stop_label']
+
+        # Initial Equity
+        perf_dict['initial_equity'] = prices['mtm_equity'].iloc[0]
+
+        # Set Ticker Longname
+        if params['ticker_source'] == 'norgate':
+            perf_dict['longname'] = norgate_name_dict[params['ticker']]
+        else:
+            perf_dict['longname'] = perf_dict['contract']
+
+        # Slippage and commission in dollars
+        perf_dict['slippage'] = params['slippage']
+        perf_dict['commission'] = params['commission']
+
+        # Start and end dates
+        perf_dict['start_date'] = prices.index[0].date().strftime("%d/%m/%y")
+        perf_dict['end_date'] = prices.index[-1].date().strftime("%d/%m/%y")
+
+        return perf_dict
+
+
+    @staticmethod
+    def _perf_data_trades(perf_dict, tables):
+
+        prices = tables['prices']
+
+        # Calculate trade data
+        perf_dict['trade_data_dict'] = Profit.trade_data(prices)
+
+        perf_dict['total_trades'] = perf_dict['trade_data_dict']['num_trades']
+
+        # number of wins and losses
+        perf_dict['num_wins'] = len(
+            perf_dict['trade_data_dict']['trades_win_dict'])
+        perf_dict['num_losses'] = len(
+            perf_dict['trade_data_dict']['trades_loss_dict'])
+
+        # Sum of all profits
+        perf_dict['total_profit'] = np.round(
+            sum(perf_dict['trade_data_dict']['trades_win_dict'].values()), 2)
+
+        # Sum of all losses
+        perf_dict['total_loss'] = np.round(
+            sum(perf_dict['trade_data_dict']['trades_loss_dict'].values()), 2)
+
+        # Percentage of winning trades
+        perf_dict['win_percent'] = int(
+            np.round(perf_dict['num_wins'] / len(
+                perf_dict['trade_data_dict']['trades']) * 100, 0))
+
+        # Percentage of losing trades
+        perf_dict['loss_percent'] = int(
+            np.round(perf_dict['num_losses']
+                     / len(perf_dict['trade_data_dict']['trades']) * 100, 0))
+
+
+        # If there are winning trades
+        if perf_dict['trade_data_dict']['trades_win_dict'].values():
+
+            # Max winning trade
+            perf_dict['max_win'] = np.round(
+                max(perf_dict['trade_data_dict']['trades_win_dict'].values()),
+                2)
+
+            # Min winning trade
+            perf_dict['min_win'] = np.round(
+                min(perf_dict['trade_data_dict']['trades_win_dict'].values()),
+                2)
+
+            # Average winning trade
+            perf_dict['av_win'] = np.round(
+                sum(perf_dict['trade_data_dict']['trades_win_dict'].values())
+                / len(perf_dict['trade_data_dict']['trades_win_list']), 2)
+
+            # standard deviation of winning trades
+            perf_dict['std_wins'] = np.round(
+                np.std(perf_dict['trade_data_dict']['trades_win_list']), 2)
+
+        # Otherwise set these to zero
+        else:
+            perf_dict['max_win'] = 0
+            perf_dict['min_win'] = 0
+            perf_dict['av_win'] = 0
+            perf_dict['std_wins'] = 0
+
+
+        # If there are losing trades
+        if perf_dict['trade_data_dict']['trades_loss_dict'].values():
+
+            # Max losing trade
+            perf_dict['max_loss'] = min(
+                perf_dict['trade_data_dict']['trades_loss_dict'].values())
+
+            # Min losing trade
+            perf_dict['min_loss'] = max(
+                perf_dict['trade_data_dict']['trades_loss_dict'].values())
+
+            # average losing trade
+            perf_dict['av_loss'] = np.round(
+                sum(perf_dict['trade_data_dict']['trades_loss_dict'].values())
+                / len(perf_dict['trade_data_dict']['trades_loss_list']), 2)
+
+            # standard deviation of losing trades
+            perf_dict['std_losses'] = np.round(
+                np.std(perf_dict['trade_data_dict']['trades_loss_list']), 2)
+
+        # Otherwise set these to zero
+        else:
+            perf_dict['max_loss'] = 0
+            perf_dict['min_loss'] = 0
+            perf_dict['av_loss'] = 0
+            perf_dict['std_losses'] = 0
+
+
+        # Maximum win/loss ratio
+        perf_dict['max_win_loss_ratio'] = np.round(
+            abs(perf_dict['max_win'] / perf_dict['max_loss']), 2)
+
+
+        # Minimum win/loss ratio
+        perf_dict['min_win_loss_ratio'] = np.round(
+            abs(perf_dict['min_win'] / perf_dict['min_loss']), 2)
+
+
+        # avwin / avloss
+        perf_dict['av_win_loss_ratio'] = np.round(
+            abs(perf_dict['av_win'] / perf_dict['av_loss']), 2)
+
+        # average trade
+        perf_dict['av_trade'] = np.round(
+            perf_dict['net_pnl']
+            / len(perf_dict['trade_data_dict']['trades']), 2)
+
+        return perf_dict
+
+
+    @staticmethod
+    def _perf_data_stat_measures(perf_dict, tables, params):
+
+        prices = tables['prices']
+
         # Riskfree Rate
-        perf_dict['riskfree_rate'] = riskfree
+        perf_dict['riskfree_rate'] = params['riskfree']
 
         # Mean Price
         perf_dict['close_price_mean'] = np.round(np.mean(prices['Close']), 2)
 
         # Variance Price
-        perf_dict['close_price_variance'] = np.round(np.var(prices['Close']), 2)
+        perf_dict['close_price_variance'] = np.round(
+            np.var(prices['Close']), 2)
 
         # Standard Deviation Price
         perf_dict['close_price_std_dev'] = np.round(np.std(prices['Close']), 2)
@@ -345,7 +428,8 @@ class PerfReport():
         perf_dict['close_price_skewness'] = np.round(skew(prices['Close']), 2)
 
         # Kurtosis Price
-        perf_dict['close_price_kurtosis'] = np.round(kurtosis(prices['Close']), 2)
+        perf_dict['close_price_kurtosis'] = np.round(
+            kurtosis(prices['Close']), 2)
 
         # Mean Return
         perf_dict['close_return_mean'] = np.round(
@@ -374,7 +458,8 @@ class PerfReport():
         # Efficiency Ratio
         perf_dict['efficiency_ratio'] = np.round(
             (abs(prices['Close'][-1] - prices['Close'][0])
-            / np.nansum(abs(prices['Close']-prices['Close'].shift()))) * 100, 2)
+            / np.nansum(abs(prices['Close'] - prices['Close'].shift())))
+            * 100, 2)
 
         # MTM Equity Annualized Standard Deviation
         perf_dict['equity_std_dev'] = np.round(
@@ -390,15 +475,16 @@ class PerfReport():
             perf_dict['annual_ror'] / perf_dict['equity_std_dev'])
 
         # Treynor Ratio
-        perf_dict['treynor_inv_correl'] = benchmark.Close.pct_change().corr(
-            prices.mtm_equity.pct_change())
+        perf_dict['treynor_inv_correl'] = tables[
+            'benchmark'].Close.pct_change().corr(
+                prices.mtm_equity.pct_change())
         #stock_correl = benchmark.Close.pct_change().corr(
         #    prices.Close.pct_change())
         perf_dict['treynor_sd_inv'] = np.std(
             prices.mtm_equity.pct_change())*np.sqrt(252)
         #sd_stock = np.std(prices.Close.pct_change())
         perf_dict['treynor_sd_index'] = np.std(
-            benchmark.Close.pct_change())*np.sqrt(252)
+            tables['benchmark'].Close.pct_change())*np.sqrt(252)
         #beta = stock_correl * (sd_stock / sd_index)
         perf_dict['treynor_beta'] = (perf_dict['treynor_inv_correl']
                                      * (perf_dict['treynor_sd_inv']
@@ -434,43 +520,8 @@ class PerfReport():
 
         # Gain to Pain
         perf_dict['gain_to_pain'] = np.round(
-            monthly_data['return'].sum() / monthly_data['abs_loss'].sum(), 2)
-
-        # Maximum MTM Equity Profit
-        perf_dict['max_equity_profit'] = (
-            prices['max_mtm_equity'].iloc[-1] - perf_dict['initial_equity'])
-
-        # Largest open equity drawdown
-        perf_dict['open_equity_dd'] = (prices['trade_pnl_drawback'].max())*(-1)
-
-        # Open equity
-        perf_dict['open_equity'] = prices['open_equity'].iloc[-1]
-
-        # Closed equity
-        perf_dict['closed_equity'] = prices['closed_equity'].iloc[-1]
-
-        # Largest monthly gain
-        perf_dict['month_net_pnl_large'] = (
-            monthly_data['total_net_profit'].max())
-
-        # Largest monthly loss
-        perf_dict['month_net_pnl_small'] = (
-            monthly_data['total_net_profit'].min())
-
-        # Average monthly gain/loss
-        perf_dict['month_net_pnl_av'] = (
-            monthly_data['total_net_profit'].mean())
-
-        # Values still to be worked out
-        placeholder_dict = {
-            'pessimistic_margin':0.00,
-            'adj_pess_margin':0.00,
-            'pess_month_avg':0.00,
-            'pess_month_variance':0.00,
-            'mod_pess_margin':0.00,
-            }
-
-        perf_dict.update(placeholder_dict)
+            tables['monthly_data']['return'].sum()
+            / tables['monthly_data']['abs_loss'].sum(), 2)
 
         return perf_dict
 
@@ -494,9 +545,33 @@ class PerfReport():
 
         """
 
+        win_run_dict = input_dict['win_run_dict']
+        loss_run_dict = input_dict['loss_run_dict']
+
         # Format the performance dictionary so that the financial data is
         # rounded to 2 decimal places and set values as strings
         input_dict = cls._dict_format(input_dict)
+        win_run_dict = cls._dict_format(win_run_dict)
+        loss_run_dict = cls._dict_format(loss_run_dict)
+
+        # Core strategy details
+        cls._report_header(input_dict)
+
+        # Trade Win / Loss statistics
+        cls._report_trades(input_dict, win_run_dict, loss_run_dict)
+
+        # Equity return / drawdown statistics
+        cls._report_equity(input_dict)
+
+        # Key performance measures
+        cls._report_key_perf(input_dict)
+
+        # Data distribution statistics
+        cls._report_data_dist(input_dict)
+
+
+    @staticmethod
+    def _report_header(input_dict):
 
         # Format header - centred and with lines above and below
         print('='*78)
@@ -555,6 +630,10 @@ class PerfReport():
             'Model Efficiency : %',
             input_dict['model_efficiency']))
 
+
+    @staticmethod
+    def _report_trades(input_dict, win_run_dict, loss_run_dict):
+
         # Headers for # trades, Max, Min and Average with lines above and below
         print('-'*78)
         print('{:>16}:{:^10}:{:^17}:{:^17}:{:^14}'.format(
@@ -583,13 +662,13 @@ class PerfReport():
             input_dict['av_win']))
 
         print('Win runs........:{:^10}:{:>11}{:<6}:{:>10}{:<7}:{:>9}{}'.format(
-            input_dict['num_win_runs'],
-            input_dict['max_win_run_pnl'],
-            ' / {}'.format(input_dict['max_win_run_count']),
-            input_dict['min_win_run_pnl'],
-            ' / {}'.format(input_dict['min_win_run_count']),
-            input_dict['av_win_run_pnl'],
-            ' / {}'.format(input_dict['av_win_run_count'])))
+            win_run_dict['num_win_runs'],
+            win_run_dict['max_win_run_pnl'],
+            ' / {}'.format(win_run_dict['max_win_run_count']),
+            win_run_dict['min_win_run_pnl'],
+            ' / {}'.format(win_run_dict['min_win_run_count']),
+            win_run_dict['av_win_run_pnl'],
+            ' / {}'.format(win_run_dict['av_win_run_count'])))
 
         # Losing trades and losing runs
         print('Loss............:{:^10}:{:>11}{:>6}:{:>10}{:>7}:{:>9}'.format(
@@ -601,13 +680,13 @@ class PerfReport():
             input_dict['av_loss']))
 
         print('Loss runs.......:{:^10}:{:>11}{:<6}:{:>10}{:<7}:{:>9}{}'.format(
-            input_dict['num_loss_runs'],
-            input_dict['max_loss_run_pnl'],
-            ' / {}'.format(input_dict['max_loss_run_count']),
-            input_dict['min_loss_run_pnl'],
-            ' / {}'.format(input_dict['min_loss_run_count']),
-            input_dict['av_loss_run_pnl'],
-            ' / {}'.format(input_dict['av_loss_run_count'])))
+            loss_run_dict['num_loss_runs'],
+            loss_run_dict['max_loss_run_pnl'],
+            ' / {}'.format(loss_run_dict['max_loss_run_count']),
+            loss_run_dict['min_loss_run_pnl'],
+            ' / {}'.format(loss_run_dict['min_loss_run_count']),
+            loss_run_dict['av_loss_run_pnl'],
+            ' / {}'.format(loss_run_dict['av_loss_run_count'])))
 
         # Win loss ratio
         print('Win/Loss Ratio..:{:>10}:{:>11}{:>6}:{:>10}{:>7}:{:>9}'.format(
@@ -620,6 +699,10 @@ class PerfReport():
 
         # Separating line
         print('-'*78)
+
+
+    @staticmethod
+    def _report_equity(input_dict):
 
         # Open and Closed equity
         print('Open Equity.......... ${:>10}{:<6}{}{:>10}'.format(
@@ -708,6 +791,9 @@ class PerfReport():
             input_dict['annual_long_only_spx_ror']))
 
 
+    @staticmethod
+    def _report_key_perf(input_dict):
+
         # Key Performance Measures
         print('-'*78)
         print('{:^78}'.format('Key Performance Measures'))
@@ -760,6 +846,9 @@ class PerfReport():
             'Kurtosis Price........  ',
             input_dict['close_price_kurtosis']))
 
+
+    @staticmethod
+    def _report_data_dist(input_dict):
 
         # Return Distribution statistics
 

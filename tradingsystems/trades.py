@@ -5,7 +5,6 @@ Calculate trades and positions
 
 import math
 import numpy as np
-import pandas as pd
 
 class Positions():
     """
@@ -63,7 +62,12 @@ class Positions():
             end_of_day_position[row] = (start_of_day_position[row]
                                         + trade_action[row])
 
-        return start_of_day_position, trade_action, end_of_day_position
+        pos_dict = {}
+        pos_dict['start_of_day_position'] = start_of_day_position
+        pos_dict['trade_action'] = trade_action
+        pos_dict['end_of_day_position'] = end_of_day_position
+
+        return pos_dict
 
 
     @staticmethod
@@ -159,6 +163,7 @@ class Positions():
             The lowest closing price for each trade.
 
         """
+
         # Initialize price arrays with zeroes
         trade_entry_price = np.array([0.0]*len(prices))
         trade_exit_price = np.array([0.0]*len(prices))
@@ -218,15 +223,21 @@ class Positions():
                     prices[trade_number==trade_num].iloc[
                         0:trade_row_num+1]['Low'])
 
-        return trade_entry_price, trade_exit_price, trade_high_price, \
-            trade_low_price, trade_close_high_price, trade_close_low_price
+        # Create dict to store arrays
+        trade_price_dict = {}
+        trade_price_dict['trade_entry_price'] = trade_entry_price
+        trade_price_dict['trade_exit_price'] = trade_exit_price
+        trade_price_dict['trade_high_price'] = trade_high_price
+        trade_price_dict['trade_low_price'] = trade_low_price
+        trade_price_dict['trade_close_high_price'] = trade_close_high_price
+        trade_price_dict['trade_close_low_price'] = trade_close_low_price
+
+        return trade_price_dict
 
 
     @staticmethod
     def position_values(
-            prices, trade_entry_price, end_of_day_position, trade_high_price,
-            trade_close_high_price, trade_low_price, trade_close_low_price,
-            trade_number):
+            prices, end_of_day_position, trade_price_dict):
         """
         Calculate position values
 
@@ -280,13 +291,14 @@ class Positions():
         for row in range(1, len(prices)):
 
             # If there is a trade on
-            if trade_number[row] != 0:
+            if prices['trade_number'][row] != 0:
 
                 # If the end of day position is flat and the trade number is
                 # the same as the previous day - i.e. the trade has just been
                 # closed out
-                if (end_of_day_position[row] == 0) and (
-                        trade_number[row] == trade_number[row-1]):
+                if ((end_of_day_position[row] == 0) and (
+                        prices['trade_number'][row] == prices[
+                            'trade_number'][row-1])):
 
                     # Set the initial position value to the same as the
                     # previous day
@@ -321,7 +333,8 @@ class Positions():
                     # Set the initial position value to the trade entry price
                     # multiplied by the end of day position
                     initial_position_value[row] = (
-                        trade_entry_price[row] * end_of_day_position[row])
+                        trade_price_dict['trade_entry_price'][row]
+                        * end_of_day_position[row])
 
                     # Set the current position value to the closing price
                     # multiplied by the end of day position
@@ -331,35 +344,48 @@ class Positions():
                     # Set the maximum trade position value to the high price of
                     # the trade multiplied by the end of day position
                     max_trade_position_value[row] = (
-                        trade_high_price[row] * end_of_day_position[row])
+                        trade_price_dict['trade_high_price'][row]
+                        * end_of_day_position[row])
 
                     # Set the maximum trade closing position value to the
                     # highest closing price of the trade multiplied by the end
                     # of day position
                     max_trade_close_position_value[row] = (
-                        trade_close_high_price[row] * end_of_day_position[row])
+                        trade_price_dict['trade_close_high_price'][row]
+                        * end_of_day_position[row])
 
                     # Set the minimum trade position value to the low price of
                     # the trade multiplied by the end of day position
                     min_trade_position_value[row] = (
-                        trade_low_price[row] * end_of_day_position[row])
+                        trade_price_dict['trade_low_price'][row]
+                        * end_of_day_position[row])
 
                     # Set the minimum trade closing position value to the
                     # lowest closing price of the trade multiplied by the end
                     # of day position
                     min_trade_close_position_value[row] = (
-                        trade_close_low_price[row] * end_of_day_position[row])
+                        trade_price_dict['trade_close_low_price'][row]
+                        * end_of_day_position[row])
 
-        return initial_position_value, current_position_value, \
-            max_trade_position_value, max_trade_close_position_value, \
-                min_trade_position_value, min_trade_close_position_value
+        # Collect results in dictionary
+        pos_val_dict = {}
+
+        pos_val_dict['initial_position_value'] = initial_position_value
+        pos_val_dict['current_position_value'] = current_position_value
+        pos_val_dict['max_trade_position_value'] = max_trade_position_value
+        pos_val_dict[
+            'max_trade_close_position_value'] = max_trade_close_position_value
+        pos_val_dict['min_trade_position_value'] = min_trade_position_value
+        pos_val_dict[
+            'min_trade_close_position_value'] = min_trade_close_position_value
+
+        return pos_val_dict
 
 
     @staticmethod
     def pnl_targets(
-            prices, dollar_amount, position_size, trade_number,
-            end_of_day_position, trade_entry_price, trade_high_price,
-            trade_low_price, trade_close_high_price, trade_close_low_price):
+            prices, dollar_amount, position_size, end_of_day_position,
+            trade_price_dict):
         """
         Create profit and loss stop and exit points
 
@@ -415,52 +441,60 @@ class Positions():
         for row in range(1, len(prices)):
 
             # If there is a trade on
-            if trade_number[row] != 0:
+            if prices['raw_trade_number'][row] != 0:
 
                 # If there is a long position
                 if end_of_day_position[row] > 0:
 
                     # Set the profit target to the trade entry price plus the
                     # trade target
-                    profit_target[row] = (trade_entry_price[row]
-                                          + trade_target)
+                    profit_target[row] = (
+                        trade_price_dict['trade_entry_price'][row]
+                        + trade_target)
 
                     # Set the initial dollar loss target to the trade entry
                     # price minus the trade target
                     initial_dollar_loss[row] = (
-                        trade_entry_price[row] - trade_target)
+                        trade_price_dict['trade_entry_price'][row]
+                        - trade_target)
 
                     # Set the trailing close target to the closing high price
                     # of the trade minus the trade target
                     trailing_close[row] = (
-                        trade_close_high_price[row] - trade_target)
+                        trade_price_dict['trade_close_high_price'][row]
+                        - trade_target)
 
                     # Set the trailing high/low target to the high price
                     # of the trade minus the trade target
                     trailing_high_low[row] = (
-                        trade_high_price[row] - trade_target)
+                        trade_price_dict['trade_high_price'][row]
+                        - trade_target)
 
                 # If there is a short position
                 else:
                     # Set the profit target to the trade entry price minus the
                     # trade target
-                    profit_target[row] = (trade_entry_price[row]
-                                          - trade_target)
+                    profit_target[row] = (
+                        trade_price_dict['trade_entry_price'][row]
+                        - trade_target)
 
                     # Set the initial dollar loss target to the trade entry
                     # price plus the trade target
                     initial_dollar_loss[row] = (
-                        trade_entry_price[row] + trade_target)
+                        trade_price_dict['trade_entry_price'][row]
+                        + trade_target)
 
                     # Set the trailing close target to the closing low price
                     # of the trade plus the trade target
                     trailing_close[row] = (
-                        trade_close_low_price[row] + trade_target)
+                        trade_price_dict['trade_close_low_price'][row]
+                        + trade_target)
 
                     # Set the trailing high/low target to the low price
                     # of the trade minus the trade target
                     trailing_high_low[row] = (
-                        trade_low_price[row] + trade_target)
+                        trade_price_dict['trade_low_price'][row]
+                        + trade_target)
 
         return profit_target, initial_dollar_loss, trailing_close, \
             trailing_high_low
@@ -468,8 +502,7 @@ class Positions():
 
     @staticmethod
     def signal_combine(
-            prices, start, raw_trade_signal, end_of_day_position, trade_number,
-            exit_signal, stop_signal):
+            prices, start, end_of_day_position, trade_signals):
         """
         Combine Entry, Exit and Stop signals into a single composite signal.
 
@@ -479,16 +512,16 @@ class Positions():
             The OHLC data
         start : Int
             The first valid row to start calculating trade information from.
-        raw_trade_signal : Series
-            The series of raw Buy / Sell entry signals.
         end_of_day_position : Series
             The close of day, long/short/flat position.
-        trade_number : Series
-            Array of trade numbers.
-        exit_signal : Series
-            The series of Buy / Sell exit signals.
-        stop_signal : Series
-            The series of Buy / Sell stop signals.
+        trade_signals : DataFrame
+            DataFrame of Entry, exit and stop signals:
+                raw_trade_signal : Series
+                    The series of raw Buy / Sell entry signals.
+                exit_signal : Series
+                    The series of Buy / Sell exit signals.
+                stop_signal : Series
+                    The series of Buy / Sell stop signals.
 
         Returns
         -------
@@ -500,9 +533,8 @@ class Positions():
         # Create an empty array to store the signals
         combined_signal = np.array([0.0]*len(prices))
 
-        # Concatenate the Entry, Exit and Stop signals in a single DataFrame
-        all_signals = pd.concat(
-            [raw_trade_signal, exit_signal, stop_signal], axis=1)
+        raw_trade_signal = trade_signals['raw_trade_signal']
+        trade_number = prices['raw_trade_number']
 
         # Set a flag for whether the exit has not been triggered for each trade
         flag = True
@@ -536,7 +568,7 @@ class Positions():
                             # Set the trade signal to the minimum of the three
                             # series i.e. take any exit signal
                             combined_signal[row] = int(
-                                min(all_signals.iloc[row]))
+                                min(trade_signals.iloc[row]))
 
                         # If there is a short position
                         elif end_of_day_position[row] < 0:
@@ -544,7 +576,7 @@ class Positions():
                             # Set the trade signal to the maximum of the three
                             # series i.e. take any exit signal
                             combined_signal[row] = int(
-                                max(all_signals.iloc[row]))
+                                max(trade_signals.iloc[row]))
 
                         # If the position is flat
                         else:

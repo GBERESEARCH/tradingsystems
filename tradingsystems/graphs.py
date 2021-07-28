@@ -13,9 +13,7 @@ class PerformanceGraph():
 
     @classmethod
     def two_panel_graph(
-            cls, signals=None, prices=None, entry_type=None, perf_dict=None,
-            entry_signal_labels=None, entry_signal_indicators=None,
-            entry_period=None, ma1=None, ma2=None, ma3=None, ma4=None):
+            cls, signals=None, tables=None, params=None, es_dict=None):
         """
         Create the 2 panel graph
 
@@ -32,35 +30,31 @@ class PerformanceGraph():
         """
 
         # Setup initialization variables
-        dates, price, equity, cumsig, lower_bound, \
-            upper_bound = cls._graph_variables(
-                prices=prices, entry_type=entry_type,
-                entry_signal_indicators=entry_signal_indicators)
+        graph_params = cls._graph_variables(
+                prices=tables['prices'], entry_type=params['entry_type'],
+                entry_signal_indicators=es_dict['entry_signal_indicators'])
 
         # Set the matplotlib style to use for the charts
         with plt.style.context('fivethirtyeight'):
 
             # Set up the 2 graphs
             ax1, ax2 = cls._two_panel_setup(
-                prices=prices, dates=dates, price=price, equity=equity,
-                entry_type=entry_type, entry_signal_labels=entry_signal_labels,
-                entry_signal_indicators=entry_signal_indicators,
-                entry_period=entry_period, ma1=ma1, ma2=ma2, ma3=ma3, ma4=ma4)
+                prices=tables['prices'], graph_params=graph_params,
+                params=params, es_dict=es_dict)
 
             # If signals are to be plotted
             if signals:
 
                 # Create the trade signal points
                 signal_dict = cls._create_signals(
-                    prices=prices, cumsig=cumsig, lower_bound=lower_bound,
-                    upper_bound=upper_bound)
+                    prices=tables['prices'], graph_params=graph_params)
 
                 # Add these to the price chart
                 ax1 = cls._plot_signals(axis=ax1, signal_dict=signal_dict)
 
             # Add legend, labels and titles to the graphs
             ax1, ax2 = cls._two_panel_legend(
-                ax1=ax1, ax2=ax2, perf_dict=perf_dict)
+                ax1=ax1, ax2=ax2, perf_dict=tables['perf_dict'])
 
         # Plot the graphs
         plt.show()
@@ -68,10 +62,7 @@ class PerformanceGraph():
 
     @classmethod
     def three_panel_graph(
-            cls, signals=None, prices=None, entry_type=None,
-            entry_signal_labels=None, entry_signal_indicators=None,
-            entry_period=None, entry_overbought=None, entry_oversold=None,
-            perf_dict=None):
+            cls, signals=None, tables=None, params=None, es_dict=None):
         """
         Create the 3 panel graph
 
@@ -88,14 +79,14 @@ class PerformanceGraph():
         """
 
         # Setup initialization variables
-        dates, price, equity, cumsig, lower_bound, \
-            upper_bound = cls._graph_variables(
-                prices=prices, entry_type=entry_type,
-                entry_signal_indicators=entry_signal_indicators)
+        graph_params = cls._graph_variables(
+                prices=tables['prices'], entry_type=params['entry_type'],
+                entry_signal_indicators=es_dict['entry_signal_indicators'])
 
         # All but the Stochastic Entry methods use a single indicator column
-        if 'stoch' not in entry_type:
-            indicator = prices[entry_signal_indicators[entry_type]]
+        if 'stoch' not in params['entry_type']:
+            indicator = tables['prices'][
+                es_dict['entry_signal_indicators'][params['entry_type']]]
         else:
             indicator = None
 
@@ -104,33 +95,30 @@ class PerformanceGraph():
 
             # Set up the 3 graphs
             ax1, ax2, ax3 = cls._three_panel_setup(
-                prices=prices, dates=dates, price=price, equity=equity,
-                entry_type=entry_type, entry_signal_labels=entry_signal_labels,
-                entry_signal_indicators=entry_signal_indicators,
-                entry_period=entry_period)
+                prices=tables['prices'], graph_params=graph_params,
+                params=params, es_dict=es_dict)
 
             # If signals are to be plotted
             if signals:
 
                 # Create the trade signal points
                 signal_dict = cls._create_signals(
-                    prices=prices, cumsig=cumsig, lower_bound=lower_bound,
-                    upper_bound=upper_bound)
+                    prices=tables['prices'], graph_params=graph_params)
 
                 # Add these to the price chart
                 ax1 = cls._plot_signals(axis=ax1, signal_dict=signal_dict)
 
             # Set the overbought / oversold lines on the indicator chart
             ax2 = cls._indicator_format(
-                axis=ax2, dates=dates, indicator=indicator,
-                entry_type=entry_type, entry_overbought=entry_overbought,
-                entry_oversold=entry_oversold)
+                axis=ax2, dates=graph_params['dates'], indicator=indicator,
+                params=params)
 
             # Add legend, labels and titles to the graphs
+            axes = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3}
             ax1, ax2, ax3 = cls._three_panel_legend(
-                ax1=ax1, ax2=ax2, ax3=ax3, perf_dict=perf_dict,
-                entry_period=entry_period, entry_type=entry_type,
-                entry_signal_labels=entry_signal_labels)
+                axes=axes, perf_dict=tables['perf_dict'],
+                params=params,
+                entry_signal_labels=es_dict['entry_signal_labels'])
 
         # Plot the graphs
         plt.show()
@@ -159,17 +147,20 @@ class PerformanceGraph():
 
         """
 
+        # Dictionary to store default params
+        graph_params = {}
+
         # Set the dates to the index of the main DataFrame
-        dates = prices.index
+        graph_params['dates'] = prices.index
 
         # Closing Prices
-        price = prices['Close']
+        graph_params['price'] = prices['Close']
 
         # MTM Equity
-        equity = prices['mtm_equity']
+        graph_params['equity'] = prices['mtm_equity']
 
         # Cumulative sum of the combined entry, exit and stop signal
-        cumsig = prices['combined_signal'].cumsum()
+        graph_params['cumsig'] = prices['combined_signal'].cumsum()
 
         # The lower and upper bounds are used in setting where the trade
         # signals are plotted on the price chart
@@ -177,25 +168,25 @@ class PerformanceGraph():
         if entry_type == 'channel_breakout':
 
             # Set the lower bound as rolling low close prices
-            lower_bound = prices[entry_signal_indicators[entry_type][0]]
+            graph_params['lower_bound'] = prices[
+                entry_signal_indicators[entry_type][0]]
 
             # Set the upper bound as rolling high close prices
-            upper_bound = prices[entry_signal_indicators[entry_type][1]]
+            graph_params['upper_bound'] = prices[
+                entry_signal_indicators[entry_type][1]]
 
         # Otherwise
         else:
             # Set the upper and lower bounds to the closing price
-            lower_bound = price
-            upper_bound = price
+            graph_params['lower_bound'] = graph_params['price']
+            graph_params['upper_bound'] = graph_params['price']
 
-        return dates, price, equity, cumsig, lower_bound, upper_bound
+        return graph_params
 
 
     @staticmethod
     def _two_panel_setup(
-            prices=None, dates=None, price=None, equity=None, entry_type=None,
-            entry_signal_labels=None, entry_signal_indicators=None,
-            entry_period=None, ma1=None, ma2=None, ma3=None, ma4=None):
+            prices=None, graph_params=None, params=None, es_dict=None):
         """
         Set up the 2 panel chart
 
@@ -218,15 +209,17 @@ class PerformanceGraph():
         """
 
         # If the entry is a moving average
-        if entry_type in ['2ma', '3ma', '4ma']:
+        if params['entry_type'] in ['2ma', '3ma', '4ma']:
 
             # The indicator label has 2 parts to combine
-            indicator_label = (entry_signal_labels[entry_type][0]
-                               + entry_signal_labels[entry_type][1])
+            indicator_label = (
+                es_dict['entry_signal_labels'][params['entry_type']][0]
+                + es_dict['entry_signal_labels'][params['entry_type']][1])
         # Otherwise
         else:
             # Assign the label from the default dictionary
-            indicator_label = entry_signal_labels[entry_type]
+            indicator_label = es_dict[
+                'entry_signal_labels'][params['entry_type']]
 
         # Set the figure size to 25 wide and 10 high
         plt.rcParams['figure.figsize'] = (25, 10)
@@ -237,67 +230,101 @@ class PerformanceGraph():
         ax2 = plt.subplot2grid((9,1), (6,0), rowspan = 3, colspan = 1)
 
         # Plot price against time in the first graph
-        ax1.plot(dates, price, linewidth=1.5, label='Close Price')
+        ax1.plot(graph_params['dates'],
+                 graph_params['price'],
+                 linewidth=1.5,
+                 label='Close Price')
 
         # If the entry is Parabolic SAR
-        if entry_type == 'sar':
+        if params['entry_type'] == 'sar':
 
             # Extract the SAR series from the core DataFrame
-            indicator = prices[entry_signal_indicators[entry_type]]
+            indicator = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']]]
 
             # Add these as a scatter to the price-time chart
-            ax1.scatter(dates, indicator, marker='.', color='red', s=10,
-                        label=str(entry_period)+'-day '+indicator_label)
+            ax1.scatter(graph_params['dates'],
+                        indicator,
+                        marker='.',
+                        color='red',
+                        s=10,
+                        label=str(params['entry_period'])
+                        +'-day '
+                        +indicator_label)
 
         # If the entry is a channel breakout
-        elif entry_type == 'channel_breakout':
+        elif params['entry_type'] == 'channel_breakout':
 
             # Extract Rolling Low and Rolling High Closes
-            lower_channel = prices[entry_signal_indicators[entry_type][0]]
-            upper_channel = prices[entry_signal_indicators[entry_type][1]]
+            lower_channel = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][0]]
+            upper_channel = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][1]]
 
             # Add these to the price-time chart
-            ax1.plot(dates, lower_channel, linewidth=2,
-                     label=str(entry_period)+'-day Low')
-            ax1.plot(dates, upper_channel, linewidth=2,
-                     label=str(entry_period)+'-day High')
+            ax1.plot(graph_params['dates'],
+                     lower_channel,
+                     linewidth=2,
+                     label=str(params['entry_period'])+'-day Low')
+            ax1.plot(graph_params['dates'],
+                     upper_channel,
+                     linewidth=2,
+                     label=str(params['entry_period'])+'-day High')
 
         # If the entry is a moving average
-        elif entry_type in ['2ma', '3ma', '4ma']:
+        elif params['entry_type'] in ['2ma', '3ma', '4ma']:
 
             # Extract and plot the first 2 moving averages
-            ma_1 = prices[entry_signal_indicators[entry_type][0]]
-            ax1.plot(dates, ma_1, linewidth=2, label=str(ma1)+'-day MA')
+            ma_1 = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][0]]
+            ax1.plot(graph_params['dates'],
+                     ma_1,
+                     linewidth=2,
+                     label=str(params['ma1'])+'-day MA')
 
-            ma_2 = prices[entry_signal_indicators[entry_type][1]]
-            ax1.plot(dates, ma_2, linewidth=2, label=str(ma2)+'-day MA')
+            ma_2 = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][1]]
+            ax1.plot(graph_params['dates'],
+                     ma_2,
+                     linewidth=2,
+                     label=str(params['ma2'])+'-day MA')
 
             # If the entry type is not a double moving average
-            if entry_type != '2ma':
+            if params['entry_type'] != '2ma':
 
                 # Plot the third moving average
-                ma_3 = prices[entry_signal_indicators[entry_type][2]]
-                ax1.plot(dates, ma_3, linewidth=2, label=str(ma3)+'-day MA')
+                ma_3 = prices[
+                    es_dict['entry_signal_indicators'][
+                        params['entry_type']][2]]
+                ax1.plot(graph_params['dates'],
+                         ma_3,
+                         linewidth=2,
+                         label=str(params['ma3'])+'-day MA')
 
                 # If the entry type is not the triple moving average
-                if entry_type != '3ma':
+                if params['entry_type'] != '3ma':
 
                     # Plot the fourth moving average
-                    ma_4 = prices[entry_signal_indicators[entry_type][3]]
-                    ax1.plot(dates, ma_4, linewidth=2,
-                             label=str(ma4)+'-day MA')
+                    ma_4 = prices[
+                        es_dict['entry_signal_indicators'][
+                            params['entry_type']][3]]
+                    ax1.plot(graph_params['dates'],
+                             ma_4,
+                             linewidth=2,
+                             label=str(params['ma4'])+'-day MA')
 
         # Plot the MTM Equity curve
-        ax2.plot(dates, equity, linewidth=1.5, label='MTM Equity')
+        ax2.plot(graph_params['dates'],
+                 graph_params['equity'],
+                 linewidth=1.5,
+                 label='MTM Equity')
 
         return ax1, ax2
 
 
     @staticmethod
     def _three_panel_setup(
-            prices=None, dates=None, price=None, equity=None, entry_type=None,
-            entry_signal_labels=None, entry_signal_indicators=None,
-            entry_period=None):
+            prices=None, graph_params=None, params=None, es_dict=None):
         """
         Set up the 3 panel chart
 
@@ -322,7 +349,8 @@ class PerformanceGraph():
         """
 
          # Assign the label from the default dictionary
-        indicator_label = entry_signal_labels[entry_type]
+        indicator_label = es_dict[
+                'entry_signal_labels'][params['entry_type']]
 
         # Set the figure size to 25 wide and 14 high
         plt.rcParams['figure.figsize'] = (25, 14)
@@ -335,39 +363,57 @@ class PerformanceGraph():
         ax3 = plt.subplot2grid((13,1), (10,0), rowspan = 3, colspan = 1)
 
         # Plot price against time in the first graph
-        ax1.plot(dates, price, color='black', linewidth=1.5,
+        ax1.plot(graph_params['dates'],
+                 graph_params['price'],
+                 color='black',
+                 linewidth=1.5,
                  label='Close Price')
 
         # If the trade entry is a Stochastic
-        if 'stoch' in entry_type:
+        if 'stoch' in params['entry_type']:
 
             # Take the slow k and d values from the core DataFrame
-            slow_k = prices[entry_signal_indicators[entry_type][0]]
-            slow_d = prices[entry_signal_indicators[entry_type][1]]
+            slow_k = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][0]]
+            slow_d = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][1]]
 
             # Plot these in the second chart
-            ax2.plot(dates, slow_k, color='blue', linewidth=1.5,
-                 label='Slow k')
-            ax2.plot(dates, slow_d, color='red', linewidth=1.5,
-                 label='Slow d')
+            ax2.plot(graph_params['dates'],
+                     slow_k,
+                     color='blue',
+                     linewidth=1.5,
+                     label='Slow k')
+            ax2.plot(graph_params['dates'],
+                     slow_d,
+                     color='red',
+                     linewidth=1.5,
+                     label='Slow d')
 
         # Otherwise
         else:
             # Take the indicator column based on entry type and plot in the
             # second chart
-            indicator = prices[entry_signal_indicators[entry_type]]
-            ax2.plot(dates, indicator, color='blue', linewidth=1.5,
-                     label=str(entry_period)+'-day '+indicator_label)
+            indicator = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']]]
+            ax2.plot(graph_params['dates'],
+                     indicator,
+                     color='blue',
+                     linewidth=1.5,
+                     label=str(params['entry_period'])+'-day '+indicator_label)
 
         # Plot the MTM Equity curve
-        ax3.plot(dates, equity, linewidth=1.5, label='MTM Equity')
+        ax3.plot(graph_params['dates'],
+                 graph_params['equity'],
+                 linewidth=1.5,
+                 label='MTM Equity')
 
         return ax1, ax2, ax3
 
 
     @staticmethod
     def _create_signals(
-            prices=None, cumsig=None, lower_bound=None, upper_bound=None):
+            prices=None, graph_params=None):
         """
         Create trade signals to be plotted on main price chart
 
@@ -391,12 +437,15 @@ class PerformanceGraph():
 
         # Buy signal to go long is where the current cumulative signal is to be
         # long when yesterday it was flat
-        signal_dict['buy_long_signals'] = (cumsig == 1) & (cumsig.shift() != 1)
+        signal_dict['buy_long_signals'] = (
+            (graph_params['cumsig'] == 1)
+            & (graph_params['cumsig'].shift() != 1))
 
         # Place the marker 5% below the lower bound
-        signal_dict['buy_long_marker'] = (lower_bound
-                                          * signal_dict['buy_long_signals']
-                                          - lower_bound.max()*.05)
+        signal_dict['buy_long_marker'] = (
+            graph_params['lower_bound']
+            * signal_dict['buy_long_signals']
+            - graph_params['lower_bound'].max()*.05)
 
         signal_dict['buy_long_marker'] = signal_dict[
             'buy_long_marker'][signal_dict['buy_long_signals']]
@@ -407,13 +456,15 @@ class PerformanceGraph():
 
         # Buy signal to go flat is where the current cumulative signal is to be
         # flat when yesterday it was short
-        signal_dict['buy_flat_signals'] = ((cumsig == 0)
-                                           & (cumsig.shift() == -1))
+        signal_dict['buy_flat_signals'] = (
+            (graph_params['cumsig'] == 0)
+            & (graph_params['cumsig'].shift() == -1))
 
         # Place the marker 8% below the lower bound
-        signal_dict['buy_flat_marker'] = (lower_bound
-                                          * signal_dict['buy_flat_signals']
-                                          - lower_bound.max()*.08)
+        signal_dict['buy_flat_marker'] = (
+            graph_params['lower_bound']
+            * signal_dict['buy_flat_signals']
+            - graph_params['lower_bound'].max()*.08)
 
         signal_dict['buy_flat_marker'] = signal_dict[
             'buy_flat_marker'][signal_dict['buy_flat_signals']]
@@ -424,13 +475,15 @@ class PerformanceGraph():
 
         # Sell signal to go flat is where the current cumulative signal is to
         # be flat when yesterday it was long
-        signal_dict['sell_flat_signals'] = ((cumsig == 0)
-                                            & (cumsig.shift() == 1))
+        signal_dict['sell_flat_signals'] = (
+            (graph_params['cumsig'] == 0)
+            & (graph_params['cumsig'].shift() == 1))
 
         # Place the marker 8% above the upper bound
-        signal_dict['sell_flat_marker'] = (upper_bound
-                                           * signal_dict['sell_flat_signals']
-                                           + upper_bound.max()*.08)
+        signal_dict['sell_flat_marker'] = (
+            graph_params['upper_bound']
+            * signal_dict['sell_flat_signals']
+            + graph_params['upper_bound'].max()*.08)
 
         signal_dict['sell_flat_marker'] = signal_dict[
             'sell_flat_marker'][signal_dict['sell_flat_signals']]
@@ -440,13 +493,15 @@ class PerformanceGraph():
             signal_dict['sell_flat_signals']]
 
         # Set the dates for the sell short signals
-        signal_dict['sell_short_signals'] = ((cumsig == -1)
-                                             & (cumsig.shift() != -1))
+        signal_dict['sell_short_signals'] = (
+            (graph_params['cumsig'] == -1)
+            & (graph_params['cumsig'].shift() != -1))
 
         # Place the marker 5% above the upper bound
-        signal_dict['sell_short_marker'] = (upper_bound
-                                            * signal_dict['sell_short_signals']
-                                            + upper_bound.max()*.05)
+        signal_dict['sell_short_marker'] = (
+            graph_params['upper_bound']
+            * signal_dict['sell_short_signals']
+            + graph_params['upper_bound'].max()*.05)
 
         signal_dict['sell_short_marker'] = signal_dict[
             'sell_short_marker'][signal_dict['sell_short_signals']]
@@ -513,8 +568,7 @@ class PerformanceGraph():
 
     @staticmethod
     def _indicator_format(
-            axis=None, dates=None, indicator=None, entry_type=None,
-            entry_overbought=None, entry_oversold=None):
+            axis=None, indicator=None, dates=None,  params=None):
         """
         Apply Overbought / Oversold formatting to the indicator chart
 
@@ -535,25 +589,31 @@ class PerformanceGraph():
         """
 
         # For all the indicators other than momentum and volatility
-        if entry_type not in ['momentum', 'volatility']:
+        if params['entry_type'] not in ['momentum', 'volatility']:
 
             # Plot horizontal overbought and oversold lines
-            axis.axhline(y=entry_oversold, color='black', linewidth=1)
-            axis.axhline(y=entry_overbought, color='black', linewidth=1)
+            axis.axhline(
+                y=params['entry_oversold'],
+                color='black',
+                linewidth=1)
+            axis.axhline(
+                y=params['entry_overbought'],
+                color='black',
+                linewidth=1)
 
             # For the RSI and CCI indicators
-            if entry_type in ['rsi', 'cci']:
+            if params['entry_type'] in ['rsi', 'cci']:
 
                 # Fill the area over the overbought line to the indicator
                 axis.fill_between(
-                    dates, indicator, entry_overbought,
-                    where=indicator>=entry_overbought,
+                    dates, indicator, params['entry_overbought'],
+                    where=indicator>=params['entry_overbought'],
                     interpolate=True, color='red')
 
                 # Fill the area under the oversold line to the indicator
                 axis.fill_between(
-                    dates, indicator, entry_oversold,
-                    where=indicator<=entry_oversold,
+                    dates, indicator, params['entry_oversold'],
+                    where=indicator<=params['entry_oversold'],
                     interpolate=True, color='red')
 
         return axis
@@ -593,8 +653,7 @@ class PerformanceGraph():
 
     @staticmethod
     def _three_panel_legend(
-            ax1, ax2, ax3, perf_dict, entry_period, entry_signal_labels,
-            entry_type):
+            axes, perf_dict, entry_signal_labels, params):
         """
         Create the legend, axis labels and titles for the 3 panel graph
 
@@ -617,15 +676,19 @@ class PerformanceGraph():
             The MTM Equity chart.
 
         """
+        ax1 = axes['ax1']
+        ax2 = axes['ax2']
+        ax3 = axes['ax3']
+
         # Title of main price chart is the contract longname plus the entry
         # strategy
         ax1.set_title(perf_dict['longname']+' - '+perf_dict['entry_label'])
         ax1.set_ylabel('Price')
 
         # Title of the Indicator chart is the time period plus indicator name
-        ax2.set_title(str(entry_period)
+        ax2.set_title(str(params['entry_period'])
                       +'-day '
-                      +entry_signal_labels[entry_type])
+                      +entry_signal_labels[params['entry_type']])
         ax3.set_title("Equity Curve")
         ax3.set_ylabel('Equity')
         ax1.legend()

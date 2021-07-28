@@ -14,7 +14,7 @@ class Profit():
     """
 
     @classmethod
-    def profit_data(cls, prices, position_size, slippage, commission, equity):
+    def profit_data(cls, prices, params):
         """
         Adds profit fields to the OHLC data
 
@@ -41,13 +41,17 @@ class Profit():
         """
 
         # Create pnl data
-        prices = cls._pnl_mtm(prices=prices, slippage=slippage, commission=commission)
+        prices = cls._pnl_mtm(
+            prices=prices, slippage=params['slippage'],
+            commission=params['commission'])
 
         # Create cumulative trade pnl, equity and drawdown data
-        prices = cls._cumulative_trade_pnl_and_equity(prices=prices, equity=equity)
+        prices = cls._cumulative_trade_pnl_and_equity(
+            prices=prices, equity=params['equity'])
 
         # Create perfect profit data
-        prices = cls._perfect_profit(prices=prices, position_size=position_size)
+        prices = cls._perfect_profit(
+            prices=prices, position_size=params['position_size'])
 
         return prices
 
@@ -76,14 +80,16 @@ class Profit():
         """
 
         # daily pnl
-        prices = cls._daily_pnl(prices=prices, slippage=slippage, commission=commission)
+        prices = cls._daily_pnl(
+            prices=prices, slippage=slippage, commission=commission)
 
         # total pnl
         prices['total_pnl'] = np.array([0]*len(prices['Close']), dtype=float)
         prices['total_pnl'] = prices['daily_pnl'].cumsum()
 
         # position mtm
-        prices['position_mtm'] = prices['position'] * prices['Close']
+        prices['position_mtm'] = (prices['end_of_day_position']
+                                  * prices['Close'])
 
         return prices
 
@@ -114,7 +120,7 @@ class Profit():
         # Create series of open, close and position
         open_ = prices['Open']
         close = prices['Close']
-        pos = prices['position']
+        pos = prices['end_of_day_position']
 
         # Create array of zeros
         day_pnl = np.array([0]*len(close), dtype=float)
@@ -178,7 +184,8 @@ class Profit():
         # Create daily pnl column in DataFrame, rounding to 2dp
         prices['current_trade_pnl'] = np.round(day_pnl, 2)
         prices['last_day_trade_pnl'] = last_day_trade_pnl
-        prices['daily_pnl'] = prices['current_trade_pnl'] + prices['last_day_trade_pnl']
+        prices['daily_pnl'] = (prices['current_trade_pnl']
+                               + prices['last_day_trade_pnl'])
 
         return prices
 
@@ -528,7 +535,8 @@ class Profit():
         for trade_number in range(1, num_trades+1):
 
             # Calculate profit as the sum of daily pnl for that trade number
-            profit = prices[prices['trade_number']==trade_number]['daily_pnl'].sum()
+            profit = prices[
+                prices['trade_number']==trade_number]['daily_pnl'].sum()
 
             # Assign this number (rounded to 2dp) to the trades dictionary
             trades[trade_number] = np.round(profit, 2)
@@ -557,12 +565,20 @@ class Profit():
                 trades_win_dict[key] = value
                 trades_win_list.append((key, value))
 
-        return (trades, num_trades, trades_win_dict, trades_win_list,
-                trades_loss_dict, trades_loss_list)
+        trade_data_dict = {
+            'trades':trades,
+            'num_trades':num_trades,
+            'trades_win_dict':trades_win_dict,
+            'trades_win_list':trades_win_list,
+            'trades_loss_dict':trades_loss_dict,
+            'trades_loss_list':trades_loss_list
+            }
+
+        return trade_data_dict
 
 
-    @staticmethod
-    def trade_runs(input_trades_list, run_type='win'):
+    @classmethod
+    def trade_runs(cls, input_trades_list, run_type):
         """
         Produce data for winning or losing runs of trades
 
@@ -594,6 +610,45 @@ class Profit():
             PNL for each run and number of trades.
 
         """
+
+        pnl = cls._calc_trade_runs(input_trades_list)
+
+        min_max_run_dict = cls._calc_min_max_runs(pnl, run_type)
+
+        # Count number of runs as the length of the pnl list
+        num_runs = len(pnl)
+
+        if pnl:
+
+            # Take the average number of runs as the sum of run lengths in pnl
+            # tuple divided by the number of runs
+            av_run_count = int(np.round(sum(j for i, j in pnl) / len(pnl), 0))
+
+            # Take the average run pnl as the sum of run pnls in pnl tuple
+            # divided by the number of runs
+            av_run_pnl = np.round(sum(i for i, j in pnl) / len(pnl), 2)
+
+        else:
+            av_run_count = 0
+            av_run_pnl = 0
+
+        name_dict = cls._calc_run_names(run_type)
+
+        run_dict = {
+            name_dict['max_run_pnl_str']:min_max_run_dict['max_run_pnl'],
+            name_dict['max_run_count_str']:min_max_run_dict['max_run_count'],
+            name_dict['min_run_pnl_str']:min_max_run_dict['min_run_pnl'],
+            name_dict['min_run_count_str']:min_max_run_dict['min_run_count'],
+            name_dict['num_runs_str']:num_runs,
+            name_dict['av_run_count_str']:av_run_count,
+            name_dict['av_run_pnl_str']:av_run_pnl,
+            name_dict['pnl_str']:pnl
+            }
+
+        return run_dict
+
+    @staticmethod
+    def _calc_trade_runs(input_trades_list):
 
         # Set initial values
         max_run_count = 1
@@ -668,6 +723,12 @@ class Profit():
         # Tuple for each run of PNL and number of trades.
         pnl = sorted([(sum(x), len(x)) for x in total_run_trades_list])
 
+        return pnl
+
+
+    @staticmethod
+    def _calc_min_max_runs(pnl, run_type):
+
         # Values to select for winning runs
         if run_type == 'win':
 
@@ -702,25 +763,41 @@ class Profit():
                 min_run_pnl = 0
                 min_run_count = 0
 
-        # Count number of runs as the length of the pnl list
-        num_runs = len(pnl)
+        min_max_run_dict = {
+            'max_run_pnl':max_run_pnl,
+            'max_run_count':max_run_count,
+            'min_run_pnl':min_run_pnl,
+            'min_run_count':min_run_count
+            }
 
-        if pnl:
+        return min_max_run_dict
 
-            # Take the average number of runs as the sum of run lengths in pnl
-            # tuple divided by the number of runs
-            av_run_count = int(np.round(sum(j for i, j in pnl) / len(pnl), 0))
 
-            # Take the average run pnl as the sum of run pnls in pnl tuple
-            # divided by the number of runs
-            av_run_pnl = np.round(sum(i for i, j in pnl) / len(pnl), 2)
+    @staticmethod
+    def _calc_run_names(run_type):
 
-        else:
-            av_run_count = 0
-            av_run_pnl = 0
+        max_run_pnl_str = 'max_'+run_type+'_run_pnl'
+        max_run_count_str = 'max_'+run_type+'_run_count'
+        min_run_pnl_str = 'min_'+run_type+'_run_pnl'
+        min_run_count_str = 'min_'+run_type+'_run_count'
+        num_runs_str = 'num_'+run_type+'_runs'
+        av_run_count_str = 'av_'+run_type+'_run_count'
+        av_run_pnl_str = 'av_'+run_type+'_run_pnl'
+        pnl_str = run_type+'_pnl'
 
-        return max_run_pnl, max_run_count, min_run_pnl, min_run_count, \
-            num_runs, av_run_count, av_run_pnl, pnl
+
+        name_dict = {
+            'max_run_pnl_str':max_run_pnl_str,
+            'max_run_count_str':max_run_count_str,
+            'min_run_pnl_str':min_run_pnl_str,
+            'min_run_count_str':min_run_count_str,
+            'num_runs_str':num_runs_str,
+            'av_run_count_str':av_run_count_str,
+            'av_run_pnl_str':av_run_pnl_str,
+            'pnl_str':pnl_str
+            }
+
+        return name_dict
 
 
     @staticmethod
@@ -743,7 +820,8 @@ class Profit():
         max_dd_val = min(prices['max_dd'])
 
         # Find the start location of the max drawdown
-        dd_start = prices.index.get_loc(prices[prices['max_dd']==max_dd_val].index[0])
+        dd_start = prices.index.get_loc(
+            prices[prices['max_dd']==max_dd_val].index[0])
 
         # Calculate the point where equity has returned to the pre drawdown
         # level
@@ -811,11 +889,14 @@ class Profit():
         monthly_data = pd.DataFrame()
 
         # Summarize daily pnl data by resampling to monthly
-        monthly_data['total_net_profit'] = prices['daily_pnl'].resample('1M').sum()
+        monthly_data['total_net_profit'] = prices[
+            'daily_pnl'].resample('1M').sum()
         monthly_data['average_net_profit'] = prices[
             'daily_pnl'].resample('1M').mean()
-        monthly_data['max_net_profit'] = prices['daily_pnl'].resample('1M').max()
-        monthly_data['min_net_profit'] = prices['daily_pnl'].resample('1M').min()
+        monthly_data['max_net_profit'] = prices[
+            'daily_pnl'].resample('1M').max()
+        monthly_data['min_net_profit'] = prices[
+            'daily_pnl'].resample('1M').min()
 
         # Create arrays of zeros to hold data
         monthly_data['beginning_equity'] = np.array([0.0]*len(monthly_data))
@@ -823,7 +904,8 @@ class Profit():
         monthly_data['withdrawals'] = np.array([0.0]*len(monthly_data))
         monthly_data['end_equity'] = np.array([0.0]*len(monthly_data))
         monthly_data['return'] = np.array([0.0]*len(monthly_data))
-        monthly_data['beginning_equity_raw'] = np.array([0.0]*len(monthly_data))
+        monthly_data['beginning_equity_raw'] = np.array(
+            [0.0]*len(monthly_data))
         monthly_data['end_equity_raw'] = np.array([0.0]*len(monthly_data))
         monthly_data['return_raw'] = np.array([0.0]*len(monthly_data))
         monthly_data['abs_loss'] = np.array([0.0]*len(monthly_data))

@@ -16,8 +16,7 @@ class Markets():
     """
     @classmethod
     def create_base_data(
-            cls, ticker=None, ccy_1=None, ccy_2=None, start_date=None,
-            end_date=None, source=None, asset_type=None, api_key=None):
+            cls, ticker=None, source=None, params=None):
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
 
@@ -52,20 +51,22 @@ class Markets():
             if source == 'norgate':
                 timeseriesformat = 'pandas-dataframe'
                 prices = norgatedata.price_timeseries(
-                    symbol=ticker, start_date=start_date, end_date=end_date,
+                    symbol=ticker,
+                    start_date=params['start_date'],
+                    end_date=params['end_date'],
                     format=timeseriesformat)
 
             # Extract data from Yahoo Finance
             elif source == 'yahoo':
                 prices = cls._return_yahoo_data(
-                    ticker=ticker, start_date=start_date, end_date=end_date)
+                    ticker=ticker,
+                    start_date=params['start_date'],
+                    end_date=params['end_date'])
 
             # Extract data from AlphaVantage
             elif source == 'alpha':
                 prices = cls._return_alphavantage_data(
-                    ccy_1=ccy_1, ccy_2=ccy_2, ticker=ticker,
-                    asset_type=asset_type, start_date=start_date,
-                    end_date=end_date, api_key=api_key)
+                    ticker=ticker, params=params)
 
             return prices
 
@@ -127,8 +128,7 @@ class Markets():
 
     @classmethod
     def _return_alphavantage_data(
-            cls, ccy_1=None, ccy_2=None, ticker=None, asset_type=None,
-            start_date=None, end_date=None, api_key=None):
+            cls, ticker=None, params=None):
         """
         Create DataFrame of historic prices for specified ticker using
         AlphaVantage as the source.
@@ -159,23 +159,27 @@ class Markets():
         """
 
         # Set API key
-        if api_key is None:
-            api_key = os.getenv('ALPHAVANTAGE_API_KEY')
+        if params['api_key'] is None:
+            params['api_key'] = os.getenv('ALPHAVANTAGE_API_KEY')
 
         # FX pair
-        if asset_type == 'fx':
+        if params['asset_type'] == 'fx':
             prices = cls._alphavantage_fx(
-                ccy_1=ccy_1, ccy_2=ccy_2, api_key=api_key)
+                ccy_1=params['ccy_1'],
+                ccy_2=params['ccy_2'],
+                api_key=params['api_key'])
 
         # Cryptocurrency
-        elif asset_type == 'crypto':
+        elif params['asset_type'] == 'crypto':
             prices = cls._alphavantage_crypto(
-                ccy_1=ccy_1, ccy_2=ccy_2, api_key=api_key)
+                ccy_1=params['ccy_1'],
+                ccy_2=params['ccy_2'],
+                api_key=params['api_key'])
 
         # Equity Single stock or Index
-        elif asset_type == 'equity':
+        elif params['asset_type'] == 'equity':
             prices = cls._alphavantage_equity(
-                ticker=ticker, api_key=api_key)
+                ticker=ticker, api_key=params['api_key'])
 
         # Otherwise raise an error
         else:
@@ -188,10 +192,10 @@ class Markets():
         prices = prices[::-1]
 
         # If a start date has been provided
-        if start_date is not None:
+        if params['start_date'] is not None:
 
             # Set the start variable to this, converting to datetime format
-            start = pd.to_datetime(start_date)
+            start = pd.to_datetime(params['start_date'])
 
         # If no start date is provided
         else:
@@ -199,10 +203,10 @@ class Markets():
             start = prices.index[0]
 
         # If an end date has been provided
-        if end_date is not None:
+        if params['end_date'] is not None:
 
             # Set the end variable to this, converting to datetime format
-            end = pd.to_datetime(end_date)
+            end = pd.to_datetime(params['end_date'])
 
         # If no end date is provided
         else:
