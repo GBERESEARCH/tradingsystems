@@ -61,8 +61,16 @@ class MovingAverageEntry():
         # Create numpy array of zeros to store trade signals
         trade_signal = np.array([0]*len(ma_2))
 
+        # Create numpy arrays of zeros to store min and max ma values
+        min_ma = np.array([0]*len(ma_2))
+        max_ma = np.array([0]*len(ma_2))
+
         # for each row in the DataFrame after the longest MA has started
         for row in range(start, len(ma_2)):
+
+            # Calculate the min and max ma values
+            min_ma[row] = min(ma_1[row], ma_2[row], prices['Close'][row])
+            max_ma[row] = max(ma_1[row], ma_2[row], prices['Close'][row])
 
             # If the short MA crosses above the long MA
             if ma_1[row] > ma_2[row] and ma_1[row-1] < ma_2[row-1]:
@@ -89,6 +97,8 @@ class MovingAverageEntry():
 
         prices['ma_1'] = ma_1
         prices['ma_2'] = ma_2
+        prices['min_ma'] = min_ma
+        prices['max_ma'] = max_ma
 
         return prices, start, trade_signal
 
@@ -145,75 +155,52 @@ class MovingAverageEntry():
         # Create numpy array of zeros to store trade signals
         trade_signal = np.array([0]*len(ma_3))
 
+        # Create numpy arrays of zeros to store min and max ma values
+        min_ma = np.array([0]*len(ma_3))
+        max_ma = np.array([0]*len(ma_3))
+
         # for each row in the DataFrame after the longest MA has started
         for row in range(start, len(ma_3)):
 
-            # If the medium MA is above the slow MA
-            if ma_2[row] > ma_3[row]:
+            # Calculate the min and max ma values
+            min_ma[row] = min(ma_1[row], ma_2[row], prices['Close'][row])
+            max_ma[row] = max(ma_1[row], ma_2[row], prices['Close'][row])
 
-                # If the fast MA crosses above the medium MA
-                if (ma_1[row] > ma_2[row]
-                    and ma_1[row-1] < ma_2[row-1]):
+            # If the shortest ma is above the medium ma is above the long ma
+            if (ma_1[row] > ma_2[row] > ma_3[row]):
 
-                    # Set the position signal to long
-                    position_signal[row] = 1
+                # Set the position signal to long
+                position_signal[row] = 1
+
+                # If this was not the case previously
+                if not (ma_1[row-1] > ma_2[row-1] > ma_3[row-1]):
 
                     # Signal to go long
                     trade_signal[row] = 1 - position_signal[row-1]
 
-                # If the fast MA crosses below the medium MA
-                elif (ma_1[row] < ma_2[row]
-                      and ma_1[row-1] > ma_2[row-1]):
+            # If the shortest ma is below the medium ma is below the long ma
+            elif (ma_1[row] < ma_2[row] < ma_3[row]):
 
-                    # If currently long
-                    if position_signal[row-1] == 1:
+                # Set the position signal to short
+                position_signal[row] = -1
 
-                        # Set the position signal to flat
-                        position_signal[row] = 0
-
-                        # Signal to close out long
-                        trade_signal[row] = -1
-
-                # Otherwise, take no action
-                else:
-                    trade_signal[row] = 0
-                    position_signal[row] = position_signal[row-1]
-
-            # If the medium MA is below the slow MA
-            else:
-
-                # If the fast MA crosses below the medium MA
-                if (ma_1[row] < ma_2[row]
-                    and ma_1[row-1] > ma_2[row-1]):
-
-                    # Set the position signal to short
-                    position_signal[row] = -1
+                # If this was not the case previously
+                if not (ma_1[row-1] < ma_2[row-1] < ma_3[row-1]):
 
                     # Signal to go short
                     trade_signal[row] = -1 - position_signal[row-1]
 
-                # If the fast MA crosses above the medium MA
-                elif (ma_1[row] > ma_2[row]
-                    and ma_1[row-1] < ma_2[row-1]):
-
-                    # If currently short
-                    if position_signal[row-1] == -1:
-
-                        # Set the position to flat
-                        position_signal[row] = 0
-
-                        # Signal to close out short
-                        trade_signal[row] = 1
-
-                # Otherwise, take no action
-                else:
-                    trade_signal[row] = 0
-                    position_signal[row] = position_signal[row-1]
+            # Otherwise, the position should be flat
+            else:
+                position_signal[row] = 0
+                trade_signal[row] = 0 - position_signal[row-1]
 
         # Assign the series to the OHLC data
         prices['ma_1'] = ma_1
         prices['ma_2'] = ma_2
         prices['ma_3'] = ma_3
+        prices['min_ma'] = min_ma
+        prices['max_ma'] = max_ma
 
         return prices, start, trade_signal
 
@@ -278,8 +265,16 @@ class MovingAverageEntry():
         # Create start point from first valid number
         start = np.where(~np.isnan(ma_4))[0][0]
 
+        # Create numpy arrays of zeros to store min and max ma values
+        min_ma = np.array([0]*len(ma_4))
+        max_ma = np.array([0]*len(ma_4))
+
         # for each row in the DataFrame after the longest MA has started
         for row in range(start + 1, len(ma_4)):
+
+            # Calculate the min and max ma values
+            min_ma[row] = min(ma_1[row], ma_2[row], prices['Close'][row])
+            max_ma[row] = max(ma_1[row], ma_2[row], prices['Close'][row])
 
             # If the second slowest MA is above the slowest MA
             if ma_3[row] > ma_4[row]:
@@ -345,5 +340,7 @@ class MovingAverageEntry():
         prices['ma_2'] = ma_2
         prices['ma_3'] = ma_3
         prices['ma_4'] = ma_4
+        prices['min_ma'] = min_ma
+        prices['max_ma'] = max_ma
 
         return prices, start, trade_signal

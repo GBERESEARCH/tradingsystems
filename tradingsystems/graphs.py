@@ -175,6 +175,16 @@ class PerformanceGraph():
             graph_params['upper_bound'] = prices[
                 entry_signal_indicators[entry_type][1]]
 
+        elif entry_type in ['2ma', '3ma', '4ma']:
+
+            # Set the lower bound as the lowest of the moving average values
+            # and the price
+            graph_params['lower_bound'] = prices['min_ma']
+
+            # Set the upper bound as the highest of the moving average values
+            # and the price
+            graph_params['upper_bound'] = prices['max_ma']
+
         # Otherwise
         else:
             # Set the upper and lower bounds to the closing price
@@ -434,6 +444,8 @@ class PerformanceGraph():
         """
         # Create empty dictionary
         signal_dict = {}
+        buy_sell_distance = 0.07
+        flat_distance = 0.1
 
         # Buy signal to go long is where the current cumulative signal is to be
         # long when yesterday it was flat
@@ -441,11 +453,11 @@ class PerformanceGraph():
             (graph_params['cumsig'] == 1)
             & (graph_params['cumsig'].shift() != 1))
 
-        # Place the marker 5% below the lower bound
+        # Place the marker at the specified distance below the lower bound
         signal_dict['buy_long_marker'] = (
             graph_params['lower_bound']
             * signal_dict['buy_long_signals']
-            - graph_params['lower_bound'].max()*.05)
+            - graph_params['lower_bound'].max()*buy_sell_distance)
 
         signal_dict['buy_long_marker'] = signal_dict[
             'buy_long_marker'][signal_dict['buy_long_signals']]
@@ -460,11 +472,11 @@ class PerformanceGraph():
             (graph_params['cumsig'] == 0)
             & (graph_params['cumsig'].shift() == -1))
 
-        # Place the marker 8% below the lower bound
+        # Place the marker at the specified distance below the lower bound
         signal_dict['buy_flat_marker'] = (
             graph_params['lower_bound']
             * signal_dict['buy_flat_signals']
-            - graph_params['lower_bound'].max()*.08)
+            - graph_params['lower_bound'].max()*flat_distance)
 
         signal_dict['buy_flat_marker'] = signal_dict[
             'buy_flat_marker'][signal_dict['buy_flat_signals']]
@@ -479,11 +491,11 @@ class PerformanceGraph():
             (graph_params['cumsig'] == 0)
             & (graph_params['cumsig'].shift() == 1))
 
-        # Place the marker 8% above the upper bound
+        # Place the marker at the specified distance above the upper bound
         signal_dict['sell_flat_marker'] = (
             graph_params['upper_bound']
             * signal_dict['sell_flat_signals']
-            + graph_params['upper_bound'].max()*.08)
+            + graph_params['upper_bound'].max()*flat_distance)
 
         signal_dict['sell_flat_marker'] = signal_dict[
             'sell_flat_marker'][signal_dict['sell_flat_signals']]
@@ -497,11 +509,11 @@ class PerformanceGraph():
             (graph_params['cumsig'] == -1)
             & (graph_params['cumsig'].shift() != -1))
 
-        # Place the marker 5% above the upper bound
+        # Place the marker at the specified distance above the upper bound
         signal_dict['sell_short_marker'] = (
             graph_params['upper_bound']
             * signal_dict['sell_short_signals']
-            + graph_params['upper_bound'].max()*.05)
+            + graph_params['upper_bound'].max()*buy_sell_distance)
 
         signal_dict['sell_short_marker'] = signal_dict[
             'sell_short_marker'][signal_dict['sell_short_signals']]
