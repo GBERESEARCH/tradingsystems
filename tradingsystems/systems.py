@@ -5,6 +5,7 @@ results in table and graph form.
 """
 
 # Imports
+import copy
 import pandas as pd
 from tradingsystems.graphs import PerformanceGraph as perfgraph
 from tradingsystems.marketdata import Markets
@@ -125,7 +126,7 @@ class TestStrategy():
     def __init__(self, **kwargs):
 
         # Import dictionary of default parameters
-        self.default_dict = system_params_dict
+        self.default_dict = copy.deepcopy(system_params_dict)
 
         # Longnames for Norgate Tickers
         self.norgate_name_dict = Markets.norgate_name_dict()
@@ -230,9 +231,14 @@ class TestStrategy():
         self.inputs = inputs
 
 
-    def _init_params(self, inputs):
+    @staticmethod
+    def _init_params(inputs):
 
-        params = self.default_dict['df_params']
+        params = copy.deepcopy(system_params_dict['df_params'])
+
+        entry_signal_dict = system_params_dict['df_entry_signal_dict']
+        exit_signal_dict = system_params_dict['df_exit_signal_dict']
+        stop_signal_dict = system_params_dict['df_stop_signal_dict']
 
         # For all the supplied arguments
         for key, value in inputs.items():
@@ -240,11 +246,39 @@ class TestStrategy():
             # Replace the default parameter with that provided
             params[key] = value
 
+        # Set the start and end dates to None if not supplied
         if 'start_date' not in inputs.keys():
             params['start_date'] = None
 
         if 'end_date' not in inputs.keys():
             params['end_date'] = None
+
+        # Create a list of the entry, exit and stop types
+        types = [
+            params['entry_type'], params['exit_type'], params['stop_type']]
+
+        # For each parameter in params
+        for param in params.keys():
+
+            # If the parameter has not been supplied as an input and it is not
+            # the entry exit or stop type
+            if (param not in inputs.keys()
+                and param not in types):
+
+                # If the parameter takes a specific value for the particular
+                # entry type then replace the default with this value
+                if param in entry_signal_dict[types[0]].keys():
+                    params[param] = entry_signal_dict[types[0]][str(param)]
+
+                # If the parameter takes a specific value for the particular
+                # exit type then replace the default with this value
+                if param in exit_signal_dict[types[1]].keys():
+                    params[param] = exit_signal_dict[types[1]][str(param)]
+
+                # If the parameter takes a specific value for the particular
+                # stop type then replace the default with this value
+                if param in stop_signal_dict[types[2]].keys():
+                    params[param] = stop_signal_dict[types[2]][str(param)]
 
         return params
 

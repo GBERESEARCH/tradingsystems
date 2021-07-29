@@ -45,34 +45,39 @@ class Markets():
             Returns OHLC DataFrame.
 
         """
+
         # If a valid source has been provided
-        try:
-            # Extract data from Norgate
-            if source == 'norgate':
-                timeseriesformat = 'pandas-dataframe'
-                prices = norgatedata.price_timeseries(
-                    symbol=ticker,
-                    start_date=params['start_date'],
-                    end_date=params['end_date'],
-                    format=timeseriesformat)
+        #try:
+        # Extract data from Norgate
+        if source == 'norgate':
+            timeseriesformat = 'pandas-dataframe'
+            prices = norgatedata.price_timeseries(
+                symbol=ticker,
+                start_date=params['start_date'],
+                end_date=params['end_date'],
+                format=timeseriesformat)
 
-            # Extract data from Yahoo Finance
-            elif source == 'yahoo':
-                prices = cls._return_yahoo_data(
-                    ticker=ticker,
-                    start_date=params['start_date'],
-                    end_date=params['end_date'])
+        # Extract data from Yahoo Finance
+        elif source == 'yahoo':
+            prices = cls._return_yahoo_data(
+                ticker=ticker,
+                start_date=params['start_date'],
+                end_date=params['end_date'])
 
-            # Extract data from AlphaVantage
-            elif source == 'alpha':
-                prices = cls._return_alphavantage_data(
-                    ticker=ticker, params=params)
+        # Extract data from AlphaVantage
+        elif source == 'alpha':
+            prices = cls._return_alphavantage_data(
+                ticker=ticker, params=params)
 
-            return prices
+        else:
+            raise ValueError(
+                'Select a data source from yahoo, norgate or alpha')
+
+        return prices
 
         # Otherwise return error message
-        except ValueError:
-            return 'Select a data source from yahoo, norgate or alpha'
+        #except ValueError:
+        #    return 'Select a data source from yahoo, norgate or alpha'
 
 
     @staticmethod
@@ -159,7 +164,7 @@ class Markets():
         """
 
         # Set API key
-        if params['api_key'] is None:
+        if params['api_key'] == '':
             params['api_key'] = os.getenv('ALPHAVANTAGE_API_KEY')
 
         # FX pair
