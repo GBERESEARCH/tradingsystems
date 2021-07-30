@@ -9,7 +9,7 @@
 
 &nbsp;
 
-Entry strategies: 
+### Entry strategies: 
   - Double MA Crossover
   - Triple MA Crossover
   - Quad MA Crossover
@@ -25,7 +25,7 @@ Entry strategies:
 
 &nbsp;
 
-Exit strategies:
+### Exit strategies:
   - Parabolic SAR
   - Support / Resistance
   - Trailing Relative Strength Index
@@ -39,13 +39,20 @@ Exit strategies:
 
 &nbsp;
 
-Stop strategies:
+### Stop strategies:
   - Initial Dollar
   - Support / Resistance
   - Immediate Profit
   - Breakeven
   - Trailing Close Stop
   - Trailing High / Low Stop
+
+&nbsp;
+
+### Data Sources:
+  - Norgate Data: Commodities (requires a [Futures package] subscription) 
+  - Alpha Vantage: Cash Equities, FX, Crypto (requires an [Alpha Vantage API key])
+  - Yahoo Finance: US Cash Equities
 
 &nbsp;
 
@@ -88,7 +95,7 @@ Import tradingsystems
 ```
 from tradingsystems import systems
 ```
-Run the Quad MA Cross entry strategy for 6 years against Brent Crude futures with a Parabolic SAR exit and a Trailing Close Stop.
+Run the Quad MA Cross entry strategy for 6 years against Brent Crude futures with a Parabolic SAR exit and a Trailing Close Stop. Typing ```help(systems.TestStrategy)``` gives a list of all the optional arguments.
 ```
 strat = systems.TestStrategy(ticker='&BRN', lookback=1500, entry_type='4ma', exit_type='sar', stop_type='trail_close')
 ```
@@ -218,3 +225,8 @@ The following volumes served as a reference for some of the methods and report d
 [Technical Traders Guide to Computer Analysis of the Futures Markets, Charles LeBeau & David W. Lucas]:
 <https://www.amazon.co.uk/Technical-Traders-Computer-Analysis-Futures/dp/1556234686/>
 
+[Futures package]:
+<https://norgatedata.com/futurespackage.php>
+
+[Alpha Vantage API key]:
+<https://www.alphavantage.co/support/#api-key>
