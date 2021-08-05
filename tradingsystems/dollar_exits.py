@@ -12,9 +12,7 @@ class DollarExit():
 
     @classmethod
     def exit_dollar(
-            cls, prices, trigger_value, trade_number,
-                end_of_day_position, trade_high_price=None,
-                trade_low_price=None, exit_level=None):
+            cls, prices, trigger_value, exit_level):
         """
         Calculate exit based on a dollar amount.
 
@@ -47,47 +45,39 @@ class DollarExit():
         # Calculate exit signal based on a profit target
         if exit_level == 'profit_target':
             prices, exit_ = cls._exit_profit_target(
-                prices, trigger_value=trigger_value,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position)
+                prices=prices,
+                trigger_value=trigger_value)
 
         # Calculate exit signal based on a loss from entry price
         elif exit_level == 'initial':
             prices, exit_ = cls._exit_initial_dollar_loss(
-                prices, trigger_value=trigger_value,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position)
+                prices=prices,
+                trigger_value=trigger_value)
 
         # Calculate exit signal based on a breakeven level
         elif exit_level == 'breakeven':
             prices, exit_ = cls._exit_breakeven(
-                prices, trigger_value=trigger_value,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
-                trade_high_price=trade_high_price,
-                trade_low_price=trade_low_price)
+                prices=prices,
+                trigger_value=trigger_value)
 
         # Calculate exit signal based on a trailing stop referencing the close
         elif exit_level == 'trail_close':
             prices, exit_ = cls._exit_trailing(
-                prices, trigger_value=trigger_value,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position)
+                prices=prices,
+                trigger_value=trigger_value)
 
         # Calculate exit signal based on a trailing stop referencing the
         # high/low
         elif exit_level == 'trail_high_low':
             prices, exit_ = cls._exit_trailing(
-                prices, trigger_value=trigger_value,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position)
+                prices=prices,
+                trigger_value=trigger_value)
 
         return prices, exit_
 
 
     @staticmethod
-    def _exit_profit_target(
-            prices, trigger_value, trade_number, end_of_day_position):
+    def _exit_profit_target(prices, trigger_value):
         """
         Calculate exit based on a profit target.
 
@@ -110,6 +100,8 @@ class DollarExit():
             The exit signals.
 
         """
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Create an empty array to store the signals
         profit_target_exit = np.array([0]*len(prices))
@@ -146,8 +138,7 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_initial_dollar_loss(
-            prices, trigger_value, trade_number, end_of_day_position):
+    def _exit_initial_dollar_loss(prices, trigger_value):
         """
         Calculate exit based on a given loss from the entry point.
 
@@ -170,6 +161,9 @@ class DollarExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Create an empty array to store the signals
         initial_dollar_loss_exit = np.array([0]*len(prices))
@@ -206,9 +200,7 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_breakeven(
-            prices, trigger_value, trade_number, end_of_day_position,
-            trade_high_price, trade_low_price):
+    def _exit_breakeven(prices, trigger_value):
         """
         Calculate exit based on passing a breakeven threshold.
 
@@ -235,6 +227,11 @@ class DollarExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
+        trade_high_price = prices['raw_trade_high_price']
+        trade_low_price = prices['raw_trade_low_price']
 
         # Create an empty array to store the signals
         breakeven_exit = np.array([0.0]*len(prices))
@@ -278,7 +275,7 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_trailing(prices, trigger_value, trade_number, end_of_day_position):
+    def _exit_trailing(prices, trigger_value):
         """
         Calculate exit based on a trailing stop.
 
@@ -301,6 +298,9 @@ class DollarExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Create an empty array to store the signals
         trailing_exit = np.array([0.0]*len(prices))

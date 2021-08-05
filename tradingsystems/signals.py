@@ -8,14 +8,14 @@ from tradingsystems.indicator_entries import IndicatorEntry
 from tradingsystems.indicator_exits import IndicatorExit
 from tradingsystems.ma_entries import MovingAverageEntry
 
-class Entry():
+class Signals():
     """
     Calculate entry signals
 
     """
 
     @classmethod
-    def entry_signal(cls, tables=None, params=None):
+    def entry_signal(cls, tables, params):
         """
         Calculate trade entry signals
 
@@ -65,30 +65,21 @@ class Entry():
             tables['prices'], start, \
                 signal = MovingAverageEntry.entry_double_ma_crossover(
                     prices=tables['prices'],
-                    ma1=params['ma1'],
-                    ma2=params['ma2'],
-                    simple_ma=params['simple_ma'])
+                    params=params)
 
         # Triple Moving Average Crossover
         elif params['entry_type'] == '3ma':
             tables['prices'], start, \
                 signal = MovingAverageEntry.entry_triple_ma_crossover(
                     prices=tables['prices'],
-                    ma1=params['ma1'],
-                    ma2=params['ma2'],
-                    ma3=params['ma3'],
-                    simple_ma=params['simple_ma'])
+                    params=params)
 
         # Quad Moving Average Crossover
         elif params['entry_type'] == '4ma':
             tables['prices'], start, \
                 signal = MovingAverageEntry.entry_quad_ma_crossover(
                     prices=tables['prices'],
-                    ma1=params['ma1'],
-                    ma2=params['ma2'],
-                    ma3=params['ma3'],
-                    ma4=params['ma4'],
-                    simple_ma=params['simple_ma'])
+                    params=params)
 
         # Parabolic SAR
         elif params['entry_type'] == 'sar':
@@ -167,15 +158,8 @@ class Entry():
         return tables['prices'], start, signal
 
 
-class Exit():
-    """
-    Calculate Exit and Stop signals
-
-    """
-
     @classmethod
-    def exit_and_stop_signals(
-            cls, prices, trade_number, end_of_day_position, params):
+    def exit_and_stop_signals(cls, prices, params):
         """
         Calculate trade exit and stop signals.
 
@@ -231,21 +215,17 @@ class Exit():
         """
         # Generate the exit signals
         prices, prices['exit_signal'] = cls._exit_signal(
-            prices=prices, trade_number=trade_number,
-            end_of_day_position=end_of_day_position,
-            params=params)
+            prices=prices, params=params)
 
         # Generate the stop signals
         prices, prices['stop_signal'] = cls._stop_signal(
-            prices=prices, trade_number=trade_number,
-            end_of_day_position=end_of_day_position,
-            params=params)
+            prices=prices, params=params)
 
         return prices
 
 
     @classmethod
-    def _exit_signal(cls, prices, trade_number, end_of_day_position, params):
+    def _exit_signal(cls, prices, params):
         """
         Calculate trade exit signals.
 
@@ -292,8 +272,6 @@ class Exit():
         if params['exit_type'] == 'sar':
             prices, exit_ = IndicatorExit.exit_parabolic_sar(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['exit_period'],
                 acceleration_factor=params['exit_acceleration_factor'],
                 sip_price=params['sip_price'])
@@ -302,16 +280,12 @@ class Exit():
         elif params['exit_type'] == 'sup_res':
             prices, exit_ = IndicatorExit.exit_support_resistance(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['exit_period'])
 
         # Trailing RSI Exit
         elif params['exit_type'] == 'rsi_trail':
             prices, exit_ = IndicatorExit.exit_rsi_trail(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['exit_period'],
                 oversold=params['exit_oversold'],
                 overbought=params['exit_overbought'])
@@ -320,16 +294,12 @@ class Exit():
         elif params['exit_type'] == 'key_reversal':
             prices, exit_ = IndicatorExit.exit_key_reversal(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['exit_period'])
 
         # Volatility Breakout Exit
         elif params['exit_type'] == 'volatility':
             prices, exit_ = IndicatorExit.exit_volatility(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['exit_period'],
                 threshold=params['exit_threshold'])
 
@@ -337,31 +307,24 @@ class Exit():
         elif params['exit_type'] == 'stoch_cross':
             prices, exit_ = IndicatorExit.exit_stochastic_crossover(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['exit_period'])
 
         # N-day Range Exit
         elif params['exit_type'] == 'nday_range':
             prices, exit_ = IndicatorExit.exit_nday_range(
-                prices=prices, trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
+                prices=prices,
                 time_period=params['exit_period'])
 
         # Random Exit
         elif params['exit_type'] == 'random':
             prices, exit_ = IndicatorExit.exit_random(
-                prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position)
+                prices=prices)
 
         # Trailing Stop Exit
         elif params['exit_type'] == 'trailing_stop':
             prices, exit_ = DollarExit.exit_dollar(
                 exit_level='trail_close',
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 trigger_value=prices['exit_trailing_close'])
 
         # Profit Target Exit
@@ -369,16 +332,13 @@ class Exit():
             prices, exit_ = DollarExit.exit_dollar(
                 exit_level='profit_target',
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 trigger_value=prices['exit_profit_target'])
 
         return prices, exit_
 
 
     @classmethod
-    def _stop_signal(
-            cls, prices, trade_number, end_of_day_position, params):
+    def _stop_signal(cls, prices, params):
         """
         Calculate trade stop signals
 
@@ -417,16 +377,12 @@ class Exit():
         if params['stop_type'] == 'sup_res':
             prices, stop = IndicatorExit.exit_support_resistance(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['stop_period'])
 
         # Immediate Profit Stop
         elif params['stop_type'] == 'immediate_profit':
             prices, stop = IndicatorExit.exit_immediate_profit(
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 time_period=params['stop_period'])
 
         # Initial Dollar Loss Stop
@@ -434,8 +390,6 @@ class Exit():
             prices, stop = DollarExit.exit_dollar(
                 exit_level='initial',
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 trigger_value=prices['stop_initial_dollar_loss'])
 
         # Breakeven Stop
@@ -443,19 +397,13 @@ class Exit():
             prices, stop = DollarExit.exit_dollar(
                 exit_level='breakeven',
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
-                trigger_value=prices['stop_profit_target'],
-                trade_high_price=prices['raw_trade_high_price'],
-                trade_low_price=prices['raw_trade_low_price'])
+                trigger_value=prices['stop_profit_target'])
 
         # Trailing Stop (Closing Price)
         elif params['stop_type'] == 'trail_close':
             prices, stop = DollarExit.exit_dollar(
                 exit_level='trail_close',
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 trigger_value=prices['stop_trailing_close'])
 
         # Trailing Stop (High / Low Price)
@@ -463,8 +411,6 @@ class Exit():
             prices, stop = DollarExit.exit_dollar(
                 exit_level='trail_high_low',
                 prices=prices,
-                trade_number=trade_number,
-                end_of_day_position=end_of_day_position,
                 trigger_value=prices['stop_trailing_high_low'])
 
         return prices, stop

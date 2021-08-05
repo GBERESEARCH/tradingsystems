@@ -274,6 +274,46 @@ class Labels():
         return stop_label
 
 
+    @staticmethod
+    def position_size_label(params):
+        """
+        Create position size label
+
+        Parameters
+        ----------
+        params : Dict
+            Dictionary of parameters.
+
+        Returns
+        -------
+        params : Dict
+            Dictionary of parameters.
+
+        """
+        if params['position_type'] == 'equity_constant':
+            params['position_size_label'] = (
+                str(int(params['equity_inv_perc'] * 100))
+                +'% Starting Equity / Initial Trade Entry Price')
+
+        elif params['position_type'] == 'equity_variable':
+            params['position_size_label'] = (
+                str(int(params['equity_inv_perc'] * 100))
+                +'% Starting Equity / Trade Entry Price')
+
+        elif params['position_type'] == 'atr':
+            params['position_size_label'] = (
+                str(params['atr_pos_size'])
+                +' day ATR : '
+                +str(np.round(params['position_risk_bps'] / 100, 2))
+                +'% risk')
+        else:
+            params['position_size_label'] = (
+                str(params['fixed_pos_size'])
+                +' contracts fixed size')
+
+        return params
+
+
 class Dates():
     """
     Date calculation and formatting functions.
@@ -318,3 +358,68 @@ class Dates():
             start_date = str(start_date_as_dt)
 
         return start_date, end_date
+
+
+class Reformat():
+    """
+    Functions for mapping / scaling data
+    """
+
+    @staticmethod
+    def position_scale(pos_dict, position_size):
+        """
+        Scale raw positions by position size
+
+        Parameters
+        ----------
+        raw_pos_dict : Dict
+            Dictionary of start of day, end of day positions and trade actions.
+        position_size : Series
+            Array of the position size to be applied each day.
+
+        Returns
+        -------
+        scaled_dict : Dict
+            Dictionary of the 3 arrays, scaled by the position sizes.
+
+        """
+        # Create empty dictionary
+        scaled_dict = {}
+
+        # For each kew, value combination in the raw position dictionary
+        for key, value in pos_dict.items():
+
+            # Multiply the array by the position size array
+            scaled_dict[key] = value * position_size
+
+        return scaled_dict
+
+
+    @staticmethod
+    def map_to_prices(prices, input_dict, title_modifier):
+        """
+        Map dictionary of arrays to the OHLC data
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data.
+        input_dict : Dict
+            Dictionary of arrays.
+        title_modifier : Str
+            String to append to the array names.
+
+        Returns
+        -------
+        prices : DataFrame
+            The OHLC data.
+
+        """
+        # For each key, value combination in the input dictionary
+        for key, value in input_dict.items():
+
+            # Add the array to the OHLC DataFrame appending the title modifier
+            # to the beginning of the name
+            prices[title_modifier+key] = value
+
+        return prices

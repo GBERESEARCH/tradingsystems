@@ -12,7 +12,7 @@ class MovingAverageEntry():
 
     """
     @staticmethod
-    def entry_double_ma_crossover(prices, ma1, ma2, simple_ma):
+    def entry_double_ma_crossover(prices, params):
         """
         Entry signal for Double Moving Average Crossover strategy
 
@@ -38,6 +38,9 @@ class MovingAverageEntry():
             The series of Buy / Sell signals.
 
         """
+        ma1 = params['ma1']
+        ma2 = params['ma2']
+        simple_ma = params['simple_ma']
 
         if simple_ma:
 
@@ -104,7 +107,7 @@ class MovingAverageEntry():
 
 
     @staticmethod
-    def entry_triple_ma_crossover(prices, ma1, ma2, ma3, simple_ma):
+    def entry_triple_ma_crossover(prices, params):
         """
         Entry signal for Triple Moving Average Crossover strategy
 
@@ -132,6 +135,12 @@ class MovingAverageEntry():
             The series of Buy / Sell signals.
 
         """
+
+        ma1 = params['ma1']
+        ma2 = params['ma2']
+        ma3 = params['ma3']
+        simple_ma = params['simple_ma']
+
         # Create fast, medium and slow simple moving averages
         if simple_ma:
             ma_1 = np.array(prices['Close'].rolling(ma1).mean())
@@ -167,25 +176,25 @@ class MovingAverageEntry():
             max_ma[row] = max(ma_1[row], ma_2[row], prices['Close'][row])
 
             # If the shortest ma is above the medium ma is above the long ma
-            if (ma_1[row] > ma_2[row] > ma_3[row]):
+            if ma_1[row] > ma_2[row] > ma_3[row]:
 
                 # Set the position signal to long
                 position_signal[row] = 1
 
                 # If this was not the case previously
-                if not (ma_1[row-1] > ma_2[row-1] > ma_3[row-1]):
+                if not ma_1[row-1] > ma_2[row-1] > ma_3[row-1]:
 
                     # Signal to go long
                     trade_signal[row] = 1 - position_signal[row-1]
 
             # If the shortest ma is below the medium ma is below the long ma
-            elif (ma_1[row] < ma_2[row] < ma_3[row]):
+            elif ma_1[row] < ma_2[row] < ma_3[row]:
 
                 # Set the position signal to short
                 position_signal[row] = -1
 
                 # If this was not the case previously
-                if not (ma_1[row-1] < ma_2[row-1] < ma_3[row-1]):
+                if not ma_1[row-1] < ma_2[row-1] < ma_3[row-1]:
 
                     # Signal to go short
                     trade_signal[row] = -1 - position_signal[row-1]
@@ -206,7 +215,7 @@ class MovingAverageEntry():
 
 
     @staticmethod
-    def entry_quad_ma_crossover(prices, ma1, ma2, ma3, ma4, simple_ma):
+    def entry_quad_ma_crossover(prices, params):
 
         """
         Entry signals for Quad Moving Average strategy
@@ -238,6 +247,12 @@ class MovingAverageEntry():
         trade_signal : Series
             The series of Buy / Sell signals.
         """
+
+        ma1 = params['ma1']
+        ma2 = params['ma2']
+        ma3 = params['ma3']
+        ma4 = params['ma4']
+        simple_ma = params['simple_ma']
 
         # Create the 4 simple moving averages
         if simple_ma:

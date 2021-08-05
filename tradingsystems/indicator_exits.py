@@ -15,8 +15,7 @@ class IndicatorExit():
 
     @staticmethod
     def exit_parabolic_sar(
-            prices, trade_number, end_of_day_position, time_period,
-            acceleration_factor, sip_price):
+            prices, time_period, acceleration_factor, sip_price):
         """
         Calculate exit based on a Parabolic SAR.
 
@@ -45,6 +44,9 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Extract high, low and close series from the DataFrame
         high = prices['High']
@@ -274,8 +276,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_rsi_trail(prices, trade_number, end_of_day_position, time_period,
-                        oversold, overbought):
+    def exit_rsi_trail(prices, time_period, oversold, overbought):
         """
         Calculate exit based on a trailing RSI - a down close when the RSI is
         overbought when long or an up close when the RSI is oversold when
@@ -304,6 +305,9 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Calculate RSI
         rsi = Indicators.RSI(close=prices['Close'], time_period=time_period)
@@ -349,8 +353,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_key_reversal(
-            prices, trade_number, end_of_day_position, time_period):
+    def exit_key_reversal(prices, time_period):
         """
         Calculate exit based on a key reversal day - a new high combined with
         a down close when long or a new low combined with an up close when
@@ -375,6 +378,10 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
+
         # Calculate rolling high and low prices based on time period
         rolling_high = prices['High'].rolling(time_period).max()
         rolling_low = prices['Low'].rolling(time_period).min()
@@ -424,8 +431,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_volatility(
-            prices, trade_number, end_of_day_position, time_period, threshold):
+    def exit_volatility(prices, time_period, threshold):
         """
         Calculate exit based on an increase in volatility - a fall in price
         greater than the ATR * Threshold when long or a rise in price greater
@@ -452,6 +458,9 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Create an empty array to store the signals
         volatility_exit = np.array([0]*len(prices))
@@ -499,8 +508,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_stochastic_crossover(
-            prices, trade_number, end_of_day_position, time_period):
+    def exit_stochastic_crossover(prices, time_period):
         """
         Calculate exit based on a stochastic crossover - if the slow k crosses
         below the slow d when long or if the slow k crosses above the slow d
@@ -525,6 +533,9 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Calculate slow k  and slow d
         slow_k, slow_d = Indicators.stochastic(
@@ -573,7 +584,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_random(prices, trade_number, end_of_day_position):
+    def exit_random(prices):
         """
         Calculate exit based on the first losing day after a random time
         interval.
@@ -595,6 +606,10 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
+
         # Generate a random number of days between 5 and 20
         exit_days = random.randint(5,20)
 
@@ -645,8 +660,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_support_resistance(
-            prices, trade_number, end_of_day_position, time_period):
+    def exit_support_resistance(prices, time_period):
         """
         Calculate exit based on an n-day high / low.
 
@@ -669,6 +683,10 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
+
         # Calculate rolling min and max closing prices based on time period
         rolling_high_close = prices['Close'].rolling(time_period).max()
         rolling_low_close = prices['Close'].rolling(time_period).min()
@@ -720,8 +738,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_immediate_profit(
-            prices, trade_number, end_of_day_position, time_period):
+    def exit_immediate_profit(prices, time_period):
         """
         Calculate exit based on an immediate n-day profit.
 
@@ -743,6 +760,9 @@ class IndicatorExit():
         immediate_profit_exit : Series
             The exit signals.
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # Create an empty array to store the signals
         immediate_profit_exit = np.array([0.0]*len(prices))
@@ -789,8 +809,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_nday_range(
-            prices, trade_number, end_of_day_position, time_period):
+    def exit_nday_range(prices, time_period):
         """
         Calculate exit based on an n-day range.
 
@@ -813,6 +832,9 @@ class IndicatorExit():
             The exit signals.
 
         """
+
+        trade_number = prices['raw_trade_number']
+        end_of_day_position = prices['raw_end_of_day_position']
 
         # The highest high minus the lowest low of the last n days
         n_day_low = prices['Low'].rolling(time_period).min()

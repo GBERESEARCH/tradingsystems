@@ -16,7 +16,7 @@ class Markets():
     """
     @classmethod
     def create_base_data(
-            cls, ticker=None, source=None, params=None):
+            cls, ticker=None, source=None, params=None, bench_flag=None):
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
 
@@ -50,12 +50,12 @@ class Markets():
         #try:
         # Extract data from Norgate
         if source == 'norgate':
-            timeseriesformat = 'pandas-dataframe'
-            prices = norgatedata.price_timeseries(
-                symbol=ticker,
-                start_date=params['start_date'],
-                end_date=params['end_date'],
-                format=timeseriesformat)
+            prices, params = cls._return_norgate_data(
+                ticker=ticker, params=params)
+
+            if bench_flag is False:
+                params = cls._contract_data(
+                    ticker=ticker, prices=prices, params=params)
 
         # Extract data from Yahoo Finance
         elif source == 'yahoo':
@@ -64,20 +64,37 @@ class Markets():
                 start_date=params['start_date'],
                 end_date=params['end_date'])
 
+            params['contract_point_value'] = 1
+
         # Extract data from AlphaVantage
         elif source == 'alpha':
             prices = cls._return_alphavantage_data(
                 ticker=ticker, params=params)
 
+            params['contract_point_value'] = 1
+
         else:
             raise ValueError(
                 'Select a data source from yahoo, norgate or alpha')
 
-        return prices
+        return prices, params
 
         # Otherwise return error message
         #except ValueError:
         #    return 'Select a data source from yahoo, norgate or alpha'
+
+
+    @staticmethod
+    def _return_norgate_data(ticker, params):
+
+        timeseriesformat = 'pandas-dataframe'
+        prices = norgatedata.price_timeseries(
+            symbol=ticker,
+            start_date=params['start_date'],
+            end_date=params['end_date'],
+            format=timeseriesformat)
+
+        return prices, params
 
 
     @staticmethod
@@ -398,6 +415,24 @@ class Markets():
         prices.columns = ['Open', 'High', 'Low', 'Close']
 
         return prices
+
+
+    @staticmethod
+    def _contract_data(ticker, prices, params):
+
+        params['front_ticker'] = (
+            ticker[1:]
+            +'-'
+            +str(prices['Delivery Month'][-1])[:4]
+            +params['contract_months'][
+                str(prices['Delivery Month'][-1])[4:6]])
+
+        params['per_contract_margin'] = norgatedata.margin(
+            params['front_ticker'])
+        params['contract_point_value'] = norgatedata.point_value(
+            params['front_ticker'])
+
+        return params
 
 
     @staticmethod

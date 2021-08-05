@@ -2,7 +2,7 @@
 Profit and Loss functions
 
 """
-
+# pylint: disable=E1101
 import numpy as np
 import pandas as pd
 
@@ -42,22 +42,23 @@ class Profit():
 
         # Create pnl data
         prices = cls._pnl_mtm(
-            prices=prices, slippage=params['slippage'],
-            commission=params['commission'])
+            prices=prices, params=params)
 
         # Create cumulative trade pnl, equity and drawdown data
         prices = cls._cumulative_trade_pnl_and_equity(
             prices=prices, equity=params['equity'])
 
         # Create perfect profit data
-        prices = cls._perfect_profit(
-            prices=prices, position_size=params['position_size'])
+        prices = cls._perfect_profit(prices=prices, params=params)
+
+        # Calculate margin utilisation
+        prices = cls._margin_calc(prices=prices, params=params)
 
         return prices
 
 
     @classmethod
-    def _pnl_mtm(cls, prices, slippage, commission):
+    def _pnl_mtm(cls, prices, params):
         """
         Calculate pnl and mark to market columns
 
@@ -80,8 +81,7 @@ class Profit():
         """
 
         # daily pnl
-        prices = cls._daily_pnl(
-            prices=prices, slippage=slippage, commission=commission)
+        prices = cls._daily_pnl(prices=prices, params=params)
 
         # total pnl
         prices['total_pnl'] = np.array([0]*len(prices['Close']), dtype=float)
@@ -89,13 +89,14 @@ class Profit():
 
         # position mtm
         prices['position_mtm'] = (prices['end_of_day_position']
-                                  * prices['Close'])
+                                  * prices['Close']
+                                  * params['contract_point_value'])
 
         return prices
 
 
     @staticmethod
-    def _daily_pnl(prices, slippage, commission):
+    def _daily_pnl(prices, params):
         """
         Calculate daily PNL
 
@@ -144,42 +145,59 @@ class Profit():
                     # the difference between todays open and yesterdays close
                     # less the cost of slippage and commission
                     day_pnl[row] = (
-                        (pos[row - 1] * (open_[row] - close[row - 1])
-                         - abs(pos[row - 1] * slippage * 0.0001 * open_[row]))
-                        - commission)
+                        ((pos[row - 1] * (open_[row] - close[row - 1])
+                         - abs(pos[row - 1]
+                               * params['slippage']
+                               * 0.0001
+                               * open_[row]))
+                        - params['commission'])
+                        * params['contract_point_value'])
 
             # If the current position is not flat
             else:
-
                 # If the position is the same as the previous day
                 if pos[row] == pos[row - 1]:
 
                     # Set the pnl to the current position * the difference
                     # between todays close and yesterdays close
-                    day_pnl[row] = pos[row] * (close[row] - close[row - 1])
+                    day_pnl[row] = (pos[row]
+                                    * (close[row] - close[row - 1])
+                                    * params['contract_point_value'])
 
                 # If the position is reversed from the previous day
                 elif pos[row] == (-1) * pos[row - 1]:
                     day_pnl[row] = (
-                        (pos[row] * (close[row] - open_[row])
-                         - abs(pos[row] * slippage * 0.0001 * open_[row]))
-                        - commission)
+                        ((pos[row] * (close[row] - open_[row])
+                         - abs(pos[row]
+                               * params['slippage']
+                               * 0.0001
+                               * open_[row]))
+                        - params['commission'])
+                        * params['contract_point_value'])
+
                     last_day_trade_pnl[row] = (
-                        (pos[row - 1] * (open_[row] - close[row - 1])
+                        ((pos[row - 1] * (open_[row] - close[row - 1])
                          - abs(
-                             pos[row - 1] * slippage * 0.0001 * open_[row]))
-                        - commission)
+                             pos[row - 1]
+                             * params['slippage']
+                             * 0.0001
+                             * open_[row]))
+                        - params['commission'])
+                        * params['contract_point_value'])
 
                 # If the position was opened from flat
                 else:
-
                     # Set the pnl to the current position * the difference
                     # between todays open and todays close less the cost of
                     # slippage and commission
                     day_pnl[row] = (
-                        (pos[row] * (close[row] - open_[row])
-                         - abs(pos[row] * slippage * 0.0001 * open_[row]))
-                        - commission)
+                        ((pos[row] * (close[row] - open_[row])
+                         - abs(pos[row]
+                               * params['slippage']
+                               * 0.0001
+                               * open_[row]))
+                        - params['commission'])
+                        * params['contract_point_value'])
 
         # Create daily pnl column in DataFrame, rounding to 2dp
         prices['current_trade_pnl'] = np.round(day_pnl, 2)
@@ -190,17 +208,17 @@ class Profit():
         return prices
 
 
-    @staticmethod
-    def _perfect_profit(prices, position_size):
+    @classmethod
+    def _cumulative_trade_pnl_and_equity(cls, prices, equity):
         """
-        Theoretical optimal of buying every low and selling every high
+        Calculate cumulative per trade pnl and various account equity series
 
         Parameters
         ----------
         prices : DataFrame
-            The OHLC data, trades signals and pnl.
-        position_size : Int
-            Number of units traded.
+            The OHLC data and trades signals.
+        equity : Float
+            The initial account equity level.
 
         Returns
         -------
@@ -209,43 +227,22 @@ class Profit():
 
         """
 
-        # Absolute difference between high and low price multiplied by
-        # position size
+        prices = cls._pnl_equity(prices=prices, equity=equity)
 
-        dpp = np.array([0.0]*len(prices))
+        prices = cls._min_max_equity(prices=prices, equity=equity)
 
-        for row, _ in enumerate(dpp):
+        prices = cls._max_dd_gain(prices=prices)
 
-            # Calculate Daily Perfect Profit
-            dpp[row] = (
-                abs(prices['High'][row] - prices['Low'][row]) * position_size)
-
-            # If the High and Low are the same
-            if dpp[row] == 0:
-
-                # Use the previous close
-                dpp[row] = (
-                    abs(prices['High'][row] - prices['Close'][row-1])
-                    * position_size)
-
-        # Set this to the daily perfect profit
-        prices['daily_perfect_profit'] = dpp
-
-        # Create array of zeros
-        prices['total_perfect_profit'] = np.array(
-            [0.0]*len(prices['Close']), dtype=float)
-
-        # Cumulative sum of daily perfect profit column
-        prices['total_perfect_profit'] = prices[
-            'daily_perfect_profit'].cumsum()
+        prices = cls._trade_drawback(prices=prices)
 
         return prices
 
 
     @staticmethod
-    def _cumulative_trade_pnl_and_equity(prices, equity):
+    def _pnl_equity(prices, equity):
         """
-        Calculate cumulative per trade pnl and various account equity series
+        Calculate cumulative per trade pnl and open, closed and mtm equity
+        series
 
         Parameters
         ----------
@@ -269,29 +266,13 @@ class Profit():
         # Create arrays of zeros
         cumulative_trade_pnl = np.array([0.0]*len(daily_pnl))
         mtm_equity = np.array([0.0]*len(daily_pnl))
-        max_mtm_equity = np.array([0.0]*len(daily_pnl))
-        min_mtm_equity = np.array([0.0]*len(daily_pnl))
         closed_equity = np.array([0.0]*len(daily_pnl))
-        max_closed_equity = np.array([0.0]*len(daily_pnl))
         open_equity = np.array([0.0]*len(daily_pnl))
-        max_retracement = np.array([0.0]*len(daily_pnl))
-        ulcer_index_d_sq = np.array([0.0]*len(daily_pnl))
         max_trade_pnl = np.array([0.0]*len(daily_pnl))
-        trade_pnl_drawback = np.array([0.0]*len(daily_pnl))
-        trade_pnl_drawback_perc = np.array([0.0]*len(daily_pnl))
-
-        # Create max drawdown and max gain numpy arrays of zeros
-        max_drawdown = np.array([0.0]*len(daily_pnl))
-        max_drawdown_perc = np.array([0.0]*len(daily_pnl))
-        max_gain = np.array([0.0]*len(daily_pnl))
-        max_gain_perc = np.array([0.0]*len(daily_pnl))
 
         # Set the initial equity values
         mtm_equity[0] = equity
-        max_mtm_equity[0] = equity
-        min_mtm_equity[0] = equity
         closed_equity[0] = equity
-        max_closed_equity[0] = equity
 
         # For each row of data
         for row in range(1, len(daily_pnl)):
@@ -307,6 +288,10 @@ class Profit():
             trade_last_row = prices.index.get_loc(
                 prices[trade_number==trade_number[row]].index[-1])
 
+            # Set the mtm equity to the previous days mtm equity plus
+            # the days pnl
+            mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
+
             # If there is a current trade
             if trade_number[row] != 0:
 
@@ -319,10 +304,6 @@ class Profit():
 
                     # The maximum of the initial days pnl and zero
                     max_trade_pnl[row] = max(daily_pnl[row], 0)
-
-                    # Set the mtm equity to the previous days mtm equity plus
-                    # the days pnl
-                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
 
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = closed_equity[row-1]
@@ -343,10 +324,6 @@ class Profit():
                     max_trade_pnl[row] = max(
                         cumulative_trade_pnl[row], max_trade_pnl[row-1])
 
-                    # Set the mtm equity to the previous days mtm equity plus
-                    # the days pnl
-                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
-
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = (mtm_equity[row-1]
                                           + last_day_trade_pnl[row])
@@ -366,10 +343,6 @@ class Profit():
                     max_trade_pnl[row] = max(
                         cumulative_trade_pnl[row], max_trade_pnl[row-1])
 
-                    # Set the mtm equity to the previous days mtm equity plus
-                    # the days pnl
-                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
-
                     # Set the closed equity to the mtm equity
                     closed_equity[row] = mtm_equity[row]
 
@@ -387,10 +360,6 @@ class Profit():
                     max_trade_pnl[row] = max(cumulative_trade_pnl[row],
                                              current_trade_pnl[row-1])
 
-                    # Set the mtm equity to the previous days mtm equity plus
-                    # the days pnl
-                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
-
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = closed_equity[row-1]
 
@@ -407,10 +376,6 @@ class Profit():
                     max_trade_pnl[row] = max(
                         cumulative_trade_pnl[row], max_trade_pnl[row-1])
 
-                    # Set the mtm equity to the previous days mtm equity plus
-                    # the days pnl
-                    mtm_equity[row] = mtm_equity[row-1] + daily_pnl[row]
-
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = closed_equity[row-1]
 
@@ -420,11 +385,59 @@ class Profit():
                 # Set cumulative trade pnl to zero
                 cumulative_trade_pnl[row] = 0
 
-                # Set the mtm equity to the previous days mtm equity
-                mtm_equity[row] = mtm_equity[row-1]
-
                 # Set the closed equity to the previous days closed equity
                 closed_equity[row] = closed_equity[row-1]
+
+            # Current open equity
+            open_equity[row] = mtm_equity[row] - closed_equity[row]
+
+        prices['cumulative_trade_pnl'] = cumulative_trade_pnl
+        prices['max_trade_pnl'] = max_trade_pnl
+        prices['mtm_equity'] = mtm_equity
+        prices['closed_equity'] = closed_equity
+        prices['open_equity'] = open_equity
+
+        return prices
+
+
+    @staticmethod
+    def _min_max_equity(prices, equity):
+        """
+        Calculate min and max mtm equity, closed equity, max retracement and
+        ulcer index input series
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data and trades signals.
+        equity : Float
+            The initial account equity level.
+
+        Returns
+        -------
+        prices : DataFrame
+            The input data with additional columns.
+
+        """
+        # Extract various series from prices
+        daily_pnl = prices['daily_pnl']
+        mtm_equity = prices['mtm_equity']
+        closed_equity = prices['closed_equity']
+
+        # Create arrays of zeros
+        max_mtm_equity = np.array([0.0]*len(daily_pnl))
+        min_mtm_equity = np.array([0.0]*len(daily_pnl))
+        max_closed_equity = np.array([0.0]*len(daily_pnl))
+        max_retracement = np.array([0.0]*len(daily_pnl))
+        ulcer_index_d_sq = np.array([0.0]*len(daily_pnl))
+
+        # Set the initial equity values
+        max_mtm_equity[0] = equity
+        min_mtm_equity[0] = equity
+        max_closed_equity[0] = equity
+
+        # For each row of data
+        for row in range(1, len(daily_pnl)):
 
             # Maximum mtm equity to this point
             max_mtm_equity[row] = np.max(mtm_equity[0:row+1])
@@ -435,13 +448,56 @@ class Profit():
             # Maximum closed equity to this point
             max_closed_equity[row] = np.max(closed_equity[:row+1])
 
-            # Current open equity
-            open_equity[row] = mtm_equity[row] - closed_equity[row]
-
             # Maximum of max closed equity and current mtm equity, used in
             # calculating Average Max Retracement
             max_retracement[row] = max(
                 (max_closed_equity[row] - mtm_equity[row]), 0)
+
+            # Squared difference between max mtm equity and current mtm equity,
+            # used in calculating Ulcer Index
+            ulcer_index_d_sq[row] = (
+                (((max_mtm_equity[row] - mtm_equity[row])
+                 / max_mtm_equity[row]) * 100) ** 2)
+
+        prices['max_closed_equity'] = max_closed_equity
+        prices['max_retracement'] = max_retracement
+        prices['max_mtm_equity'] = max_mtm_equity
+        prices['min_mtm_equity'] = min_mtm_equity
+        prices['ulcer_index_d_sq'] = ulcer_index_d_sq
+
+        return prices
+
+
+    @staticmethod
+    def _max_dd_gain(prices):
+        """
+        Calculate max drawdown and max equity gain
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data and trades signals.
+
+        Returns
+        -------
+        prices : DataFrame
+            The input data with additional columns.
+
+        """
+        # Extract various series from prices
+        daily_pnl = prices['daily_pnl']
+        mtm_equity = prices['mtm_equity']
+        max_mtm_equity = prices['max_mtm_equity']
+        min_mtm_equity = prices['min_mtm_equity']
+
+        # Create max drawdown and max gain numpy arrays of zeros
+        max_drawdown = np.array([0.0]*len(daily_pnl))
+        max_drawdown_perc = np.array([0.0]*len(daily_pnl))
+        max_gain = np.array([0.0]*len(daily_pnl))
+        max_gain_perc = np.array([0.0]*len(daily_pnl))
+
+        # For each row of data
+        for row in range(1, len(daily_pnl)):
 
             # Maximum drawdown is the smallest value of the current cumulative
             # pnl less the max of all previous rows cumulative pnl and zero
@@ -459,11 +515,41 @@ class Profit():
             max_gain_perc[row] = ((mtm_equity[row] - min_mtm_equity[row])
                                   / min_mtm_equity[row])
 
-            # Squared difference between max mtm equity and current mtm equity,
-            # used in calculating Ulcer Index
-            ulcer_index_d_sq[row] = (
-                (((max_mtm_equity[row] - mtm_equity[row])
-                 / max_mtm_equity[row]) * 100) ** 2)
+        prices['max_dd'] = max_drawdown
+        prices['max_dd_perc'] = max_drawdown_perc
+        prices['max_gain'] = max_gain
+        prices['max_gain_perc'] = max_gain_perc
+
+        return prices
+
+
+    @staticmethod
+    def _trade_drawback(prices):
+        """
+        Calculate max trade pnl drawback
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data and trades signals.
+
+        Returns
+        -------
+        prices : DataFrame
+            The input data with additional columns.
+
+        """
+        # Extract various series from prices
+        daily_pnl = prices['daily_pnl']
+        cumulative_trade_pnl = prices['cumulative_trade_pnl']
+        max_trade_pnl = prices['max_trade_pnl']
+
+        # Create arrays of zeros
+        trade_pnl_drawback = np.array([0.0]*len(daily_pnl))
+        trade_pnl_drawback_perc = np.array([0.0]*len(daily_pnl))
+
+        # For each row of data
+        for row in range(1, len(daily_pnl)):
 
             # The difference between the highest equity peak of the trade and
             # the current trade open equity
@@ -477,327 +563,81 @@ class Profit():
                     (max_trade_pnl[row] - cumulative_trade_pnl[row])
                     / max_trade_pnl[row])
 
-        prices['cumulative_trade_pnl'] = cumulative_trade_pnl
-        prices['max_trade_pnl'] = max_trade_pnl
         prices['trade_pnl_drawback'] = trade_pnl_drawback
         prices['trade_pnl_drawback_perc'] = trade_pnl_drawback_perc
-        prices['mtm_equity'] = mtm_equity
-        prices['closed_equity'] = closed_equity
-        prices['open_equity'] = open_equity
-        prices['max_closed_equity'] = max_closed_equity
-        prices['max_retracement'] = max_retracement
-        prices['max_mtm_equity'] = max_mtm_equity
-        prices['min_mtm_equity'] = min_mtm_equity
-        prices['max_dd'] = max_drawdown
-        prices['max_dd_perc'] = max_drawdown_perc
-        prices['max_gain'] = max_gain
-        prices['max_gain_perc'] = max_gain_perc
-        prices['ulcer_index_d_sq'] = ulcer_index_d_sq
 
         return prices
 
 
     @staticmethod
-    def trade_data(prices):
+    def _perfect_profit(prices, params):
         """
-        Create dictionary of trades, count of the number of trades and lists /
-        dictionaries of winning and losing trades
+        Theoretical optimal of buying every low and selling every high
 
         Parameters
         ----------
         prices : DataFrame
-            The OHLC data with trade signals.
+            The OHLC data, trades signals and pnl.
+        position_size : Int
+            Number of units traded.
 
         Returns
         -------
-        trades : Dict
-            Dictionary containing all the trades.
-        num_trades : Int
-            Number of trades.
-        trades_win_dict : Dict
-            Dictionary of winning trades.
-        trades_win_list : TYPE
-            List of winning trades.
-        trades_loss_dict : TYPE
-            Dictionary of losing trades.
-        trades_loss_list : TYPE
-            List of losing trades.
-
-        """
-        # profit per trade
-        # Create empty trades dictionary
-        trades = {}
-
-        # Count the number of unique trade numbers (less 1 for the 0 start)
-        num_trades = len(pd.unique(prices['trade_number'])) - 1
-
-        # For each trade number
-        for trade_number in range(1, num_trades+1):
-
-            # Calculate profit as the sum of daily pnl for that trade number
-            profit = prices[
-                prices['trade_number']==trade_number]['daily_pnl'].sum()
-
-            # Assign this number (rounded to 2dp) to the trades dictionary
-            trades[trade_number] = np.round(profit, 2)
-
-        # Split winning and losing trades
-        # Create empty win/loss dictionaries and lists
-        trades_win_dict = {}
-        trades_win_list = list()
-        trades_loss_dict = {}
-        trades_loss_list = list()
-
-        # for each trade and profit in the trades dictionary
-        for key, value in trades.items():
-
-            # If the profit is negative
-            if value < 0:
-
-                # Add the trade to the loss dictionary and list (as a tuple)
-                trades_loss_dict[key] = value
-                trades_loss_list.append((key, value))
-
-            # If the profit is positive
-            else:
-
-                # Otherwise add to the win dictionary and list (as a tuple)
-                trades_win_dict[key] = value
-                trades_win_list.append((key, value))
-
-        trade_data_dict = {
-            'trades':trades,
-            'num_trades':num_trades,
-            'trades_win_dict':trades_win_dict,
-            'trades_win_list':trades_win_list,
-            'trades_loss_dict':trades_loss_dict,
-            'trades_loss_list':trades_loss_list
-            }
-
-        return trade_data_dict
-
-
-    @classmethod
-    def trade_runs(cls, input_trades_list, run_type):
-        """
-        Produce data for winning or losing runs of trades
-
-        Parameters
-        ----------
-        input_trades_list : List
-            List of winning or losing trades.
-        run_type : Str, optional
-            Whether winning or losing run data is being calculated. The
-            default is 'win'.
-
-        Returns
-        -------
-        max_run_pnl : Float
-            Largest profit or loss.
-        max_run_count : Int
-            Number of trades in largest profit or loss.
-        min_run_pnl : Float
-            Smallest profit or loss.
-        min_run_count : Int
-            Number of trades in smallest profit or loss.
-        num_runs : Int
-            Count of number of winning or losing runs.
-        av_run_count : Int
-            Count of average number of trades in winning or losing runs.
-        av_run_pnl : Float
-            Average profit or loss.
-        pnl : Tuple
-            PNL for each run and number of trades.
+        prices : DataFrame
+            The input data with additional columns.
 
         """
 
-        pnl = cls._calc_trade_runs(input_trades_list)
+        dpp = np.array([0.0]*len(prices))
 
-        min_max_run_dict = cls._calc_min_max_runs(pnl, run_type)
+        for row in range(params['first_trade_start'], len(dpp)):
 
-        # Count number of runs as the length of the pnl list
-        num_runs = len(pnl)
+            # Calculate Daily Perfect Profit
+            dpp[row] = (
+                abs(prices['High'][row] - prices['Low'][row])
+                * prices['position_size_pp'][row])
 
-        if pnl:
+            # If the High and Low are the same
+            if dpp[row] == 0:
 
-            # Take the average number of runs as the sum of run lengths in pnl
-            # tuple divided by the number of runs
-            av_run_count = int(np.round(sum(j for i, j in pnl) / len(pnl), 0))
+                # Use the previous close
+                dpp[row] = (
+                    abs(prices['High'][row] - prices['Close'][row-1])
+                    * prices['position_size_pp'][row])
 
-            # Take the average run pnl as the sum of run pnls in pnl tuple
-            # divided by the number of runs
-            av_run_pnl = np.round(sum(i for i, j in pnl) / len(pnl), 2)
+        # Set this to the daily perfect profit
+        prices['daily_perfect_profit'] = dpp * params['contract_point_value']
+
+        # Create array of zeros
+        prices['total_perfect_profit'] = np.array(
+            [0.0]*len(prices['Close']), dtype=float)
+
+        # Cumulative sum of daily perfect profit column
+        prices['total_perfect_profit'] = prices[
+            'daily_perfect_profit'].cumsum()
+
+        return prices
+
+
+    @staticmethod
+    def _margin_calc(prices, params):
+
+        prices['total_margin'] = np.array([0.0]*len(prices))
+
+        if params['ticker_source'] == 'norgate':
+            prices['initial_margin'] = (
+                prices['position_size'] * params['per_contract_margin'])
 
         else:
-            av_run_count = 0
-            av_run_pnl = 0
+            prices['initial_margin'] = (
+                prices['Close'] * prices['position_size'] * params['margin_%'])
 
-        name_dict = cls._calc_run_names(run_type)
+        for row in range(params['first_trade_start'], len(prices)):
+            prices['total_margin'][row] = (
+                prices['initial_margin'][row]
+                + max(0, -prices['cumulative_trade_pnl'][row]))
 
-        run_dict = {
-            name_dict['max_run_pnl_str']:min_max_run_dict['max_run_pnl'],
-            name_dict['max_run_count_str']:min_max_run_dict['max_run_count'],
-            name_dict['min_run_pnl_str']:min_max_run_dict['min_run_pnl'],
-            name_dict['min_run_count_str']:min_max_run_dict['min_run_count'],
-            name_dict['num_runs_str']:num_runs,
-            name_dict['av_run_count_str']:av_run_count,
-            name_dict['av_run_pnl_str']:av_run_pnl,
-            name_dict['pnl_str']:pnl
-            }
-
-        return run_dict
-
-    @staticmethod
-    def _calc_trade_runs(input_trades_list):
-
-        # Set initial values
-        max_run_count = 1
-        run_count = 1
-        run_trades_list = []
-        total_run_trades_list = []
-        last_trade_count = 0
-
-        # For each trade in the winning or losing trades list, sorting by the
-        # trade number
-        for num, trade in enumerate(sorted(input_trades_list)):
-            # For the first trade
-            if num == 0:
-
-                # Add the trade pnl to the winning / losing trades run list
-                run_trades_list.append(trade[1])
-
-                # If this is the last trade
-                if num == len(input_trades_list) - 1:
-                    total_run_trades_list.append(run_trades_list)
-
-            # Otherwise, if the trade number is next in sequence after the
-            # last stored trade number
-            elif trade[0] == last_trade_count + 1:
-
-                # Increase the run count by one
-                run_count +=1
-
-                # Update the longest run count
-                max_run_count = max(max_run_count, run_count)
-
-                # Add the trade pnl to the winning / losing trades run list
-                run_trades_list.append(trade[1])
-
-                # If this is the last trade
-                if num == len(input_trades_list) - 1:
-                    total_run_trades_list.append(run_trades_list)
-
-            # If the trade is not the next in sequence:
-            else:
-
-                # Add the current run to the list of all runs
-                total_run_trades_list.append(run_trades_list)
-
-                # If this is not the last trade
-                if num != len(input_trades_list) - 1:
-
-                    # Reset the winning / losing trades run list
-                    run_trades_list = []
-
-                    # Add the trade pnl to the winning / losing trades run list
-                    run_trades_list.append(trade[1])
-
-                    # Increase the run count by one
-                    run_count = 1
-
-                # If it is the last trade
-                else:
-
-                    # Reset the winning / losing trades run list
-                    run_trades_list = []
-
-                    # Add the trade pnl to the winning / losing trades run list
-                    run_trades_list.append(trade[1])
-
-                    # Add the current run to the list of all runs
-                    total_run_trades_list.append(run_trades_list)
-
-            # Set the last trade count number to the current trade number
-            last_trade_count = trade[0]
-
-        # Tuple for each run of PNL and number of trades.
-        pnl = sorted([(sum(x), len(x)) for x in total_run_trades_list])
-
-        return pnl
-
-
-    @staticmethod
-    def _calc_min_max_runs(pnl, run_type):
-
-        # Values to select for winning runs
-        if run_type == 'win':
-
-            # If there are any winning trades
-            if pnl:
-                max_run_pnl = pnl[-1][0]
-                max_run_count = pnl[-1][-1]
-                min_run_pnl = pnl[0][0]
-                min_run_count = pnl[0][-1]
-
-            # Otherwise set the values to zero
-            else:
-                max_run_pnl = 0
-                max_run_count = 0
-                min_run_pnl = 0
-                min_run_count = 0
-
-        # Values to select for losing runs
-        else:
-
-            # If there are any losing trades
-            if pnl:
-                max_run_pnl = pnl[0][0]
-                max_run_count = pnl[0][-1]
-                min_run_pnl = pnl[-1][0]
-                min_run_count = pnl[-1][-1]
-
-            # Otherwise set the values to zero
-            else:
-                max_run_pnl = 0
-                max_run_count = 0
-                min_run_pnl = 0
-                min_run_count = 0
-
-        min_max_run_dict = {
-            'max_run_pnl':max_run_pnl,
-            'max_run_count':max_run_count,
-            'min_run_pnl':min_run_pnl,
-            'min_run_count':min_run_count
-            }
-
-        return min_max_run_dict
-
-
-    @staticmethod
-    def _calc_run_names(run_type):
-
-        max_run_pnl_str = 'max_'+run_type+'_run_pnl'
-        max_run_count_str = 'max_'+run_type+'_run_count'
-        min_run_pnl_str = 'min_'+run_type+'_run_pnl'
-        min_run_count_str = 'min_'+run_type+'_run_count'
-        num_runs_str = 'num_'+run_type+'_runs'
-        av_run_count_str = 'av_'+run_type+'_run_count'
-        av_run_pnl_str = 'av_'+run_type+'_run_pnl'
-        pnl_str = run_type+'_pnl'
-
-
-        name_dict = {
-            'max_run_pnl_str':max_run_pnl_str,
-            'max_run_count_str':max_run_count_str,
-            'min_run_pnl_str':min_run_pnl_str,
-            'min_run_count_str':min_run_count_str,
-            'num_runs_str':num_runs_str,
-            'av_run_count_str':av_run_count_str,
-            'av_run_pnl_str':av_run_pnl_str,
-            'pnl_str':pnl_str
-            }
-
-        return name_dict
+        return prices
 
 
     @staticmethod

@@ -331,7 +331,8 @@ class IndicatorEntry():
         """
         # Create Stochastics for the specified time period
         slow_k, slow_d = Indicators.stochastic(
-            prices['High'], prices['Low'], prices['Close'], fast_k_period=time_period)
+            prices['High'], prices['Low'], prices['Close'],
+            fast_k_period=time_period)
 
         # Create start point based on slow d
         start = np.where(~np.isnan(slow_d))[0][0]
@@ -509,7 +510,8 @@ class IndicatorEntry():
         """
         # Create Stochastics for the specified time period
         slow_k, slow_d = Indicators.stochastic(
-            prices['High'], prices['Low'], prices['Close'], fast_k_period=time_period)
+            prices['High'], prices['Low'], prices['Close'],
+            fast_k_period=time_period)
 
         # Create start point based on slow d
         start = np.where(~np.isnan(slow_d))[0][0]
@@ -675,7 +677,8 @@ class IndicatorEntry():
         """
 
         # Create CCI for the specified time period
-        cci = Indicators.CCI(prices['High'], prices['Low'], prices['Close'], time_period)
+        cci = Indicators.CCI(
+            prices['High'], prices['Low'], prices['Close'], time_period)
 
         # Create start point based on lookback window
         start = np.where(~np.isnan(cci))[0][0]
@@ -813,7 +816,8 @@ class IndicatorEntry():
 
         """
         # Create ATR for the specified time period
-        atr = Indicators.ATR(prices['High'], prices['Low'], prices['Close'], time_period)
+        atr = Indicators.ATR(
+            prices['High'], prices['Low'], prices['Close'], time_period)
 
         # Create start point based on lookback window
         start = np.where(~np.isnan(atr))[0][0]

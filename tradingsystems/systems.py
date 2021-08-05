@@ -9,12 +9,14 @@ import copy
 import pandas as pd
 from tradingsystems.graphs import PerformanceGraph as perfgraph
 from tradingsystems.marketdata import Markets
+from tradingsystems.positions import Positions
 from tradingsystems.pnl import Profit
 from tradingsystems.reports import PerfReport
-from tradingsystems.signals import Entry, Exit
-from tradingsystems.trades import Positions
+from tradingsystems.signals import Signals
+from tradingsystems.targets import TradeTargets
+from tradingsystems.trades import Trades
 from tradingsystems.systems_params import system_params_dict
-from tradingsystems.utils import Labels, Dates
+from tradingsystems.utils import Labels, Dates, Reformat
 
 
 class TestStrategy():
@@ -147,14 +149,14 @@ class TestStrategy():
         # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
         tables = {}
 
-        tables['prices'] = Markets.create_base_data(
+        tables['prices'], params = Markets.create_base_data(
             ticker=params['ticker'], source=params['ticker_source'],
-            params=params)
+            params=params, bench_flag=False)
 
         # Extract benchmark data for Beta calculation
-        tables['benchmark'] = Markets.create_base_data(
+        tables['benchmark'], params = Markets.create_base_data(
             ticker=params['bench_ticker'], source=params['bench_source'],
-            params=params)
+            params=params, bench_flag=True)
 
         # Set the strategy labels
         labels  = {}
@@ -163,23 +165,17 @@ class TestStrategy():
                 params=params, default_dict=self.default_dict)
 
         # Generate initial trade data
-        tables['prices'], params['start'], params['position_size'], \
-            params['benchmark_position_size'], \
-                raw_trade_price_dict = self._raw_entry_signals(
-                    tables=tables, params=params)
+        tables, params, raw_trade_price_dict = self._raw_entry_signals(
+            tables=tables, params=params)
 
         # Create exit and stop targets
-        tables['prices'] = self._exit_stop_targets(
+        tables['prices'] = TradeTargets.exit_and_stop_targets(
             prices=tables['prices'], params=params,
-            position_size=params['position_size'],
             trade_price_dict=raw_trade_price_dict)
 
         # Create exit and stop signals
-        tables['prices'] = Exit.exit_and_stop_signals(
-            prices=tables['prices'],
-            trade_number=tables['prices']['raw_trade_number'],
-            end_of_day_position=tables['prices']['raw_end_of_day_position'],
-            params=params)
+        tables['prices'] = Signals.exit_and_stop_signals(
+            prices=tables['prices'], params=params)
 
         # Concatenate the Entry, Exit and Stop signals in a single DataFrame
         trade_signals = pd.concat(
@@ -188,22 +184,28 @@ class TestStrategy():
              tables['prices']['stop_signal']], axis=1)
 
         # Generate single combined trade signal
-        tables['prices']['combined_signal'] = Positions.signal_combine(
+        tables['prices']['combined_signal'] = Trades.signal_combine(
             prices=tables['prices'], start=params['start'],
             end_of_day_position=tables['prices']['raw_end_of_day_position'],
             trade_signals=trade_signals)
 
         # Create trade and position data
-        pos_dict = Positions.positions_and_trade_actions(
+        pos_dict = Positions.calc_positions(
             prices=tables['prices'],
             signal=tables['prices']['combined_signal'],
-            start=params['start'],
-            position_size=params['position_size'])
+            start=params['start'])
 
-        for key, value in pos_dict.items():
-            tables['prices'][key] = value
+        # Scale the position info by the position size
+        pos_dict = Reformat.position_scale(
+            pos_dict=pos_dict, position_size=tables['prices']['position_size'])
 
-        tables['prices']['trade_number'] = Positions.trade_numbers(
+        # Map the raw positions to the OHLC data
+        tables['prices'] = Reformat.map_to_prices(
+            prices=tables['prices'],
+            input_dict=pos_dict,
+            title_modifier='')
+
+        tables['prices']['trade_number'] = Trades.trade_numbers(
             prices=tables['prices'],
             end_of_day_position=tables['prices']['end_of_day_position'],
             start=params['start'])
@@ -223,7 +225,7 @@ class TestStrategy():
             norgate_name_dict=self.norgate_name_dict,)
 
         # Print out results
-        PerfReport.report_table(input_dict=tables['perf_dict'])
+        self.performance_report(tables=tables)
 
         self.params = params
         self.tables = tables
@@ -233,9 +235,24 @@ class TestStrategy():
 
     @staticmethod
     def _init_params(inputs):
+        """
+        Initialise parameter dictionary
 
+        Parameters
+        ----------
+        inputs : Dict
+            Dictionary of parameters supplied to the function.
+
+        Returns
+        -------
+        params : Dict
+            Dictionary of parameters.
+
+        """
+        # Copy the default parameters
         params = copy.deepcopy(system_params_dict['df_params'])
 
+        # Extract the entry, exit and stop signal dictionaries
         entry_signal_dict = system_params_dict['df_entry_signal_dict']
         exit_signal_dict = system_params_dict['df_exit_signal_dict']
         stop_signal_dict = system_params_dict['df_stop_signal_dict']
@@ -329,162 +346,73 @@ class TestStrategy():
 
         """
         # Generate entry signals
-        prices, start, \
-            tables['prices']['raw_trade_signal'] = Entry.entry_signal(
+        tables['prices'], params['start'], \
+            tables['prices']['raw_trade_signal'] = Signals.entry_signal(
                 tables=tables, params=params)
 
-        # Set the position size
-        position_size, benchmark_position_size = Positions.position_size(
-                prices=prices, benchmark=tables['benchmark'],
-                equity=params['equity'])
-
         # Calculate initial position info
-        raw_pos_dict = Positions.positions_and_trade_actions(
-            prices=prices,
-            signal=prices['raw_trade_signal'],
-            start=start,
-            position_size=position_size)
+        raw_pos_dict = Positions.calc_positions(
+            prices=tables['prices'],
+            signal=tables['prices']['raw_trade_signal'],
+            start=params['start'])
 
         # Generate trade numbers
-        prices['raw_trade_number'] = Positions.trade_numbers(
-            prices=prices,
+        tables['prices']['raw_trade_number'] = Trades.trade_numbers(
+            prices=tables['prices'],
             end_of_day_position=raw_pos_dict['end_of_day_position'],
-            start=start)
+            start=params['start'])
+
+        # Set the position size
+        tables['prices'], tables['benchmark'], \
+            params = Positions.position_size(
+                prices=tables['prices'], benchmark=tables['benchmark'],
+                params=params)
+
+        # Set the position size label
+        params = Labels.position_size_label(params)
+
+        # Scale the position info by the position size
+        raw_pos_dict = Reformat.position_scale(
+            pos_dict=raw_pos_dict,
+            position_size=tables['prices']['position_size'])
 
         # Generate initial trade prices
-        raw_trade_price_dict = Positions.trade_prices(
-            prices=prices,
-            trade_number=prices['raw_trade_number'])
+        raw_trade_price_dict = Trades.trade_prices(
+            prices=tables['prices'],
+            trade_number=tables['prices']['raw_trade_number'])
 
-        prices = cls._map_to_prices(
-            prices=prices,
-            pos_dict=raw_pos_dict,
-            trade_price_dict=raw_trade_price_dict,
+        # Map the raw positions to the OHLC data
+        tables['prices'] = Reformat.map_to_prices(
+            prices=tables['prices'],
+            input_dict=raw_pos_dict,
             title_modifier='raw_')
 
-        return prices, start, position_size, benchmark_position_size, \
-            raw_trade_price_dict
+        # Map the raw trade prices to the OHLC data
+        tables['prices'] = Reformat.map_to_prices(
+            prices=tables['prices'],
+            input_dict=raw_trade_price_dict,
+            title_modifier='raw_')
+
+        return tables, params, raw_trade_price_dict
 
 
     @staticmethod
-    def _map_to_prices(prices, pos_dict, trade_price_dict, title_modifier):
-
-        for key, value in pos_dict.items():
-            prices[title_modifier+key] = value
-
-        for key, value in trade_price_dict.items():
-            prices[title_modifier+key] = value
-
-        return prices
-
-
-    @classmethod
-    def _exit_stop_targets(
-            cls, prices, position_size, params, trade_price_dict):
+    def performance_report(tables):
         """
-        Calculate exit and stop targets.
+        Display the performance report
 
         Parameters
         ----------
-        prices : DataFrame
-            The OHLC data.
-        exit_amount : Float
-            The dollar exit amount. The default is $1000.00.
-        stop_amount : Float
-            The dollar stop amount. The default is $500.00.
-        position_size : Int, optional
-            The number of units to trade. The default is based on equity.
-        trade_price_dict : Dict
-            Dictionary of trade entry/high/low/close series.
+        tables : Dict
+            Dictionary containing performance dict.
 
         Returns
         -------
-        prices : DataFrame
-            The OHLC data.
+        Prints the performance report to the console.
 
         """
-
-        prices = cls._exit_targets(
-            prices=prices, exit_amount=params['exit_amount'],
-            position_size=position_size,
-            trade_price_dict=trade_price_dict)
-
-        prices = cls._stop_targets(
-            prices=prices, stop_amount=params['stop_amount'],
-            position_size=position_size,
-            trade_price_dict=trade_price_dict)
-
-        return prices
-
-
-    @classmethod
-    def _exit_targets(
-            cls, prices, exit_amount, position_size, trade_price_dict):
-        """
-        Create 4 series of exit targets
-
-        Parameters
-        ----------
-        prices : DataFrame
-            The OHLC data.
-        exit_amount : Float
-            The dollar exit amount. The default is $1000.00.
-        position_size : Int, optional
-            The number of units to trade. The default is based on equity.
-        trade_price_dict : Dict
-            Dictionary of trade entry/high/low/close series.
-
-        Returns
-        -------
-        prices : DataFrame
-            The OHLC data..
-
-        """
-        # Generate profit targets / trailing stops
-        prices['exit_profit_target'], prices['exit_initial_dollar_loss'], \
-            prices['exit_trailing_close'], \
-                prices['exit_trailing_high_low'] = Positions.pnl_targets(
-                    prices=prices, dollar_amount=exit_amount,
-                    position_size=position_size,
-                    end_of_day_position=prices['raw_end_of_day_position'],
-                    trade_price_dict=trade_price_dict)
-
-        return prices
-
-
-    @classmethod
-    def _stop_targets(
-            cls, prices, stop_amount, position_size, trade_price_dict):
-        """
-        Create 4 series of stop targets
-
-        Parameters
-        ----------
-        prices : DataFrame
-            The OHLC data.
-        stop_amount : Float
-            The dollar stop amount. The default is $500.00.
-        position_size : Int, optional
-            The number of units to trade. The default is based on equity.
-        trade_price_dict : Dict
-            Dictionary of trade entry/high/low/close series.
-
-        Returns
-        -------
-        prices : DataFrame
-            The OHLC data.
-
-        """
-        # Generate profit targets / trailing stops
-        prices['stop_profit_target'], prices['stop_initial_dollar_loss'], \
-            prices['stop_trailing_close'], \
-                prices['stop_trailing_high_low'] = Positions.pnl_targets(
-                    prices=prices, dollar_amount=stop_amount,
-                    position_size=position_size,
-                    end_of_day_position=prices['raw_end_of_day_position'],
-                    trade_price_dict=trade_price_dict)
-
-        return prices
+        # Print out results
+        PerfReport.report_table(input_dict=tables['perf_dict'])
 
 
     def performance_graph(self, signals=None):

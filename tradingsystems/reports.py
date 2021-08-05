@@ -4,11 +4,11 @@ Reporting tools for the trading system data
 """
 
 import datetime as dt
-import math
 from decimal import Decimal
 import numpy as np
 from scipy.stats import skew, kurtosis
 from tradingsystems.pnl import Profit
+from tradingsystems.winloss import Runs
 
 
 class PerfReport():
@@ -81,8 +81,11 @@ class PerfReport():
             norgate_name_dict=norgate_name_dict)
 
         # Maximum margin required
-        perf_dict['margin'] = math.ceil(
-            max(abs(prices['position_mtm'])) / 100) * 100
+        perf_dict['max_init_margin'] = max(prices['initial_margin'])
+        perf_dict['max_total_margin'] = max(prices['total_margin'])
+
+        # Maximum number of contracts held
+        perf_dict['max_contracts'] = abs(max(prices['end_of_day_position']))
 
         # Net Profit
         perf_dict['net_pnl'] = prices['total_pnl'].iloc[-1]
@@ -115,20 +118,25 @@ class PerfReport():
         perf_dict = cls._perf_data_trades(perf_dict=perf_dict, tables=tables)
 
         # Pessimistic Return on Margin
-        perf_dict['adjusted_gross_profit'] = perf_dict['av_win'] * (
-            perf_dict['num_wins'] - np.round(np.sqrt(perf_dict['num_wins'])))
-        perf_dict['adjusted_gross_loss'] = perf_dict['av_loss'] * (
-            perf_dict['num_losses'] - np.round(
-                np.sqrt(perf_dict['num_losses'])))
+        perf_dict['adjusted_gross_profit'] = perf_dict[
+            'av_win'] * (perf_dict['num_wins']
+                         - np.round(np.sqrt(perf_dict['num_wins'])))
+
+        perf_dict['adjusted_gross_loss'] = perf_dict[
+            'av_loss'] * (perf_dict['num_losses']
+                          - np.round(np.sqrt(perf_dict['num_losses'])))
+
         perf_dict['prom'] = np.round(
             (perf_dict['adjusted_gross_profit']
              - perf_dict['adjusted_gross_loss']) /
-            perf_dict['margin'], 2)
+            perf_dict['max_init_margin'], 2)
 
         # PROM minus biggest win
         perf_dict['prom_minus_max_win'] = np.round(
-            (perf_dict['adjusted_gross_profit'] - perf_dict['max_win']
-             - perf_dict['adjusted_gross_loss']) / perf_dict['margin'], 2)
+            (perf_dict['adjusted_gross_profit']
+             - perf_dict['max_win']
+             - perf_dict['adjusted_gross_loss'])
+            / perf_dict['max_init_margin'], 2)
 
         # Perfect profit - Buy every dip & sell every peak
         perf_dict['perfect_profit'] = prices['total_perfect_profit'].iloc[-1]
@@ -138,11 +146,11 @@ class PerfReport():
             (perf_dict['net_pnl'] / perf_dict['perfect_profit']) * 100, 2)
 
         # Winning run data
-        perf_dict['win_run_dict'] = Profit.trade_runs(
+        perf_dict['win_run_dict'] = Runs.trade_runs(
             perf_dict['trade_data_dict']['trades_win_list'], run_type='win')
 
         # Losing run data
-        perf_dict['loss_run_dict'] = Profit.trade_runs(
+        perf_dict['loss_run_dict'] = Runs.trade_runs(
             perf_dict['trade_data_dict']['trades_loss_list'], run_type='loss')
 
         # Maximum Equity drawdown
@@ -184,19 +192,16 @@ class PerfReport():
 
         # Get the index of the first trade entry
         # Select just the rows of the first trade from the DataFrame
-        first_trade = prices[prices['trade_number']==1]
+        #first_trade = prices[prices['trade_number']==1]
 
         # Find the date of the trade entry
-        target = first_trade.index[0]
-
-        # Find the location of this in the original index
-        first_trade_start = prices.index.get_loc(target)
+        #trade_start_date = first_trade.index[0]
 
         # Return of a buy and hold strategy since the first trade entry
         perf_dict['long_only_pnl'] = (
             (prices['Close'].iloc[-1]
-             - prices['Open'].iloc[first_trade_start]) *
-            params['position_size'])
+             - prices['Open'].loc[params['first_trade_date']]) *
+            params['init_position_size']) * params['contract_point_value']
 
         # Annual Rate of return of buy and hold
         perf_dict['annual_long_only_ror'] = (
@@ -206,8 +211,8 @@ class PerfReport():
         # Return of a buy and hold strategy of SPX since the first trade entry
         perf_dict['long_only_pnl_spx'] = (
             (tables['benchmark']['Close'].iloc[-1]
-             - tables['benchmark']['Open'].iloc[first_trade_start]) *
-            params['benchmark_position_size'])
+             - tables['benchmark']['Open'].loc[params['first_trade_date']]) *
+            params['init_benchmark_position_size'])
 
         # Annual Rate of return of buy and hold of SPX
         perf_dict['annual_long_only_spx_ror'] = (
@@ -244,8 +249,8 @@ class PerfReport():
 
         # Values still to be worked out
         placeholder_dict = {
-            'pessimistic_margin':0.00,
-            'adj_pess_margin':0.00,
+            #'pessimistic_margin':0.00,
+            #'adj_pess_margin':0.00,
             'pess_month_avg':0.00,
             'pess_month_variance':0.00,
             'mod_pess_margin':0.00,
@@ -270,6 +275,7 @@ class PerfReport():
         perf_dict['entry_label'] = labels['entry_label']
         perf_dict['exit_label'] = labels['exit_label']
         perf_dict['stop_label'] = labels['stop_label']
+        perf_dict['position_size_label'] = params['position_size_label']
 
         # Initial Equity
         perf_dict['initial_equity'] = prices['mtm_equity'].iloc[0]
@@ -297,7 +303,7 @@ class PerfReport():
         prices = tables['prices']
 
         # Calculate trade data
-        perf_dict['trade_data_dict'] = Profit.trade_data(prices)
+        perf_dict['trade_data_dict'] = Runs.trade_data(prices)
 
         perf_dict['total_trades'] = perf_dict['trade_data_dict']['num_trades']
 
@@ -596,14 +602,25 @@ class PerfReport():
         # Stop Method
         print('Stop            : {:>10}'.format(input_dict['stop_label']))
 
-        # Beginning balance on left
+        # Position size Method
+        print('Position Size   : {:>10}'.format(
+            input_dict['position_size_label']))
+
+        # Beginning equity balance and max contracts traded
         print('Initial Equity  :     ${:>10}{:>9}{}{:>11}'.format(
             input_dict['initial_equity'],
             '',
-            'Margin           : $',
-            input_dict['margin']))
+            'Max Contracts    :  ',
+            input_dict['max_contracts']))
 
-        # Commission, slippage and margin
+        # Maximum Margin
+        print('Max Init Margin :     ${:>10}{:>9}{}{:>11}'.format(
+            input_dict['max_init_margin'],
+            '',
+            'Max Total Margin : $',
+            input_dict['max_total_margin']))
+
+        # Commission and slippage
         print('Commission      :     ${:>10}{:>9}{}{:>11}'.format(
             input_dict['commission'],
             '',
@@ -754,10 +771,10 @@ class PerfReport():
 
         # Pessimistic Margin
         print('Pessimistic Margin...  {:>10}{:<6}{}{:>10}'.format(
-            input_dict['pessimistic_margin'],
+            input_dict['prom'],
             '',
             'Adjusted Pess. Margin.  ',
-            input_dict['adj_pess_margin']))
+            input_dict['prom_minus_max_win']))
 
         print('Pess. Month Avg......  {:>10}{:<6}{}{:>10}'.format(
             input_dict['pess_month_avg'],
