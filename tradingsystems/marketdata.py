@@ -53,10 +53,6 @@ class Markets():
             prices, params = cls._return_norgate_data(
                 ticker=ticker, params=params)
 
-            if bench_flag is False:
-                params = cls._contract_data(
-                    ticker=ticker, prices=prices, params=params)
-
         # Extract data from Yahoo Finance
         elif source == 'yahoo':
             prices = cls._return_yahoo_data(
@@ -64,18 +60,18 @@ class Markets():
                 start_date=params['start_date'],
                 end_date=params['end_date'])
 
-            params['contract_point_value'] = 1
-
         # Extract data from AlphaVantage
         elif source == 'alpha':
             prices = cls._return_alphavantage_data(
                 ticker=ticker, params=params)
 
-            params['contract_point_value'] = 1
-
         else:
             raise ValueError(
                 'Select a data source from yahoo, norgate or alpha')
+
+        if bench_flag is False:
+            params = cls._contract_data(
+                ticker=ticker, prices=prices, params=params)
 
         return prices, params
 
@@ -420,17 +416,21 @@ class Markets():
     @staticmethod
     def _contract_data(ticker, prices, params):
 
-        params['front_ticker'] = (
-            ticker[1:]
-            +'-'
-            +str(prices['Delivery Month'][-1])[:4]
-            +params['contract_months'][
-                str(prices['Delivery Month'][-1])[4:6]])
+        if ticker[0] == '&':
+            params['front_ticker'] = (
+                ticker[1:]
+                +'-'
+                +str(prices['Delivery Month'][-1])[:4]
+                +params['contract_months'][
+                    str(prices['Delivery Month'][-1])[4:6]])
 
-        params['per_contract_margin'] = norgatedata.margin(
-            params['front_ticker'])
-        params['contract_point_value'] = norgatedata.point_value(
-            params['front_ticker'])
+            params['per_contract_margin'] = norgatedata.margin(
+                params['front_ticker'])
+            params['contract_point_value'] = norgatedata.point_value(
+                params['front_ticker'])
+
+        else:
+            params['contract_point_value'] = 1
 
         return params
 

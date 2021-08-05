@@ -624,7 +624,7 @@ class Profit():
 
         prices['total_margin'] = np.array([0.0]*len(prices))
 
-        if params['ticker_source'] == 'norgate':
+        if params['ticker'][0] == '&':
             prices['initial_margin'] = (
                 prices['position_size'] * params['per_contract_margin'])
 
