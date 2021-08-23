@@ -5,6 +5,7 @@ Profit and Loss functions
 # pylint: disable=E1101
 import numpy as np
 import pandas as pd
+pd.options.mode.chained_assignment = None
 
 class Profit():
     """

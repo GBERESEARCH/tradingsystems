@@ -6,6 +6,8 @@ Calculate position data
 import math
 import numpy as np
 from technicalmethods.methods import Indicators
+import pandas as pd
+pd.options.mode.chained_assignment = None
 
 class Positions():
     """
