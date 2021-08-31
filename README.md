@@ -1,12 +1,6 @@
 # tradingsystems
 ## End of day backtesting of Technical trading rules
 
-&nbsp;  
-
-### *** Still under development ***
-#### Performance data requires additional fields populated
-#### TBA Dynamic position sizing, Equity / Margin figures need refining
-
 &nbsp;
 
 ### Entry strategies: 
