@@ -38,11 +38,17 @@ class Labels():
         entry_label = cls._entry_label(
             params=params, default_dict=default_dict)
 
-        exit_label = cls._exit_label(
-            params=params, default_dict=default_dict)
+        if params['exit_type'] is None:
+            exit_label = entry_label
+        else:
+            exit_label = cls._exit_label(
+                params=params, default_dict=default_dict)
 
-        stop_label = cls._stop_label(
-            params=params, default_dict=default_dict)
+        if params['stop_type'] is None:
+            stop_label = 'None'
+        else:
+            stop_label = cls._stop_label(
+                params=params, default_dict=default_dict)
 
         return entry_label, exit_label, stop_label
 

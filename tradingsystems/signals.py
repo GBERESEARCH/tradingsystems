@@ -2,17 +2,117 @@
 Entry and Exit signals
 
 """
-
+import numpy as np
+import pandas as pd
 from tradingsystems.dollar_exits import DollarExit
 from tradingsystems.indicator_entries import IndicatorEntry
 from tradingsystems.indicator_exits import IndicatorExit
 from tradingsystems.ma_entries import MovingAverageEntry
+from tradingsystems.positions import Positions
+from tradingsystems.trades import Trades
+from tradingsystems.utils import Labels, Reformat
 
 class Signals():
     """
     Calculate entry signals
 
     """
+
+    @classmethod
+    def raw_entry_signals(cls, tables, params):
+        """
+        Generate the initial raw entry signals, positions and trades
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data.
+        entry_type : Str, optional
+            The entry strategy. The default is '2ma'.
+        ma1 : Int, optional
+            The first moving average period.
+        ma2 : Int, optional
+            The second moving average period.
+        ma3 : Int, optional
+            The third moving average period.
+        ma4 : Int, optional
+            The fourth moving average period.
+        entry_period : Int
+            The number of days to use in the entry strategy. The default is 14.
+        entry_oversold : Int
+            The oversold level to use in the entry strategy.
+        entry_overbought : Int
+            The overbought level to use in the entry strategy.
+        entry_threshold : Float
+            The entry threshold used for momentum / volatility strategies.
+            The default is 0 for momentum and 1.5 for volatility.
+        simple_ma : Bool
+            Whether to calculate a simple or exponential moving average. The
+            default is True.
+        benchmark : Series
+            The series of closing prices of the benchmark underlying.
+        entry_acceleration_factor : Float
+            The acceleration factor used in the Parabolic SAR entry signal.
+            The default is 0.02.
+
+        Returns
+        -------
+        prices : DataFrame
+            The OHLC data.
+        start : Int
+            The first valid row to start calculating trade information from.
+
+        """
+        # Generate entry signals
+        tables['prices'], params['start'], \
+            tables['prices']['raw_trade_signal'] = cls.entry_signal(
+                tables=tables, params=params)
+
+        # Calculate initial position info
+        raw_pos_dict = Positions.calc_positions(
+            prices=tables['prices'],
+            signal=tables['prices']['raw_trade_signal'],
+            start=params['start'])
+
+        # Generate trade numbers
+        tables['prices']['raw_trade_number'] = Trades.trade_numbers(
+            prices=tables['prices'],
+            end_of_day_position=raw_pos_dict['end_of_day_position'],
+            start=params['start'])
+
+        # Set the position size
+        tables['prices'], tables['benchmark'], \
+            params = Positions.position_size(
+                prices=tables['prices'], benchmark=tables['benchmark'],
+                params=params)
+
+        # Set the position size label
+        params = Labels.position_size_label(params)
+
+        # Scale the position info by the position size
+        raw_pos_dict = Reformat.position_scale(
+            pos_dict=raw_pos_dict,
+            position_size=tables['prices']['position_size'])
+
+        # Generate initial trade prices
+        raw_trade_price_dict = Trades.trade_prices(
+            prices=tables['prices'],
+            trade_number=tables['prices']['raw_trade_number'])
+
+        # Map the raw positions to the OHLC data
+        tables['prices'] = Reformat.map_to_prices(
+            prices=tables['prices'],
+            input_dict=raw_pos_dict,
+            title_modifier='raw_')
+
+        # Map the raw trade prices to the OHLC data
+        tables['prices'] = Reformat.map_to_prices(
+            prices=tables['prices'],
+            input_dict=raw_trade_price_dict,
+            title_modifier='raw_')
+
+        return tables, params, raw_trade_price_dict
+
 
     @classmethod
     def entry_signal(cls, tables, params):
@@ -213,13 +313,19 @@ class Signals():
             The OHLC data
 
         """
-        # Generate the exit signals
-        prices, prices['exit_signal'] = cls._exit_signal(
-            prices=prices, params=params)
+        if params['exit_type'] is not None:
+            # Generate the exit signals
+            prices, prices['exit_signal'] = cls._exit_signal(
+                prices=prices, params=params)
+        else:
+            prices['exit_signal'] = np.array([0]*len(prices))
 
-        # Generate the stop signals
-        prices, prices['stop_signal'] = cls._stop_signal(
-            prices=prices, params=params)
+        if params['stop_type'] is not None:
+            # Generate the stop signals
+            prices, prices['stop_signal'] = cls._stop_signal(
+                prices=prices, params=params)
+        else:
+            prices['stop_signal'] = np.array([0]*len(prices))
 
         return prices
 
@@ -414,3 +520,36 @@ class Signals():
                 trigger_value=prices['stop_trailing_high_low'])
 
         return prices, stop
+
+
+    @staticmethod
+    def final_signals(params, tables):
+        """
+        Concatenate entry, exit and stop signals into a combined signal.
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data.
+        start : Int
+            The first valid row to start calculating trade information from.
+
+        Returns
+        -------
+        prices : DataFrame
+            The OHLC data.
+
+        """
+        # Concatenate the Entry, Exit and Stop signals in a single DataFrame
+        trade_signals = pd.concat(
+            [tables['prices']['raw_trade_signal'],
+             tables['prices']['exit_signal'],
+             tables['prices']['stop_signal']], axis=1)
+
+        # Generate single combined trade signal
+        tables['prices']['combined_signal'] = Trades.signal_combine(
+            prices=tables['prices'], start=params['start'],
+            end_of_day_position=tables['prices']['raw_end_of_day_position'],
+            trade_signals=trade_signals)
+
+        return tables

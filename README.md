@@ -87,11 +87,11 @@ Install tradingsystems
 
 Import tradingsystems
 ```
-from tradingsystems import systems
+from tradingsystems.systems import TestStrategy
 ```
-Run the Quad MA Cross entry strategy for 6 years against Brent Crude futures with a Parabolic SAR exit and a Trailing Close Stop. Typing ```help(systems.TestStrategy)``` gives a list of all the optional arguments.
+Run the Quad MA Cross entry strategy for 6 years against Brent Crude futures with a Parabolic SAR exit and a Trailing Close Stop. Typing ```help(TestStrategy)``` gives a list of all the optional arguments.
 ```
-strat = systems.TestStrategy(ticker='&BRN', lookback=1500, entry_type='4ma', exit_type='sar', stop_type='trail_close')
+strat = TestStrategy(ticker='&BRN', lookback=1500, entry_type='4ma', exit_type='sar', stop_type='trail_close')
 ```
 
 &nbsp;
@@ -104,10 +104,7 @@ A table of results is printed to the console
 
 &nbsp;
 
-Display a graph of the performance of the strategy with trade signals and the equity curve.
-```
-strat.performance_graph()
-```
+And a graph of the performance of the strategy with trade signals and the equity curve.
 
 ![Brent_6y_4MA_graph](images/Brent_6y_4MA_graph.png)
 
@@ -116,7 +113,7 @@ strat.performance_graph()
 Nickel with a 14 Day Parabolic SAR entry:
 
 ```
-strat = systems.TestStrategy(ticker='@NI', entry_type='sar', exit_amount=5000, stop_amount=3000)
+strat = TestStrategy(ticker='@NI', entry_type='sar', exit_amount=5000, stop_amount=3000)
 ```
 
 ![NI_3y_SAR_report](images/NI_3y_SAR_report.png)
@@ -124,9 +121,6 @@ strat = systems.TestStrategy(ticker='@NI', entry_type='sar', exit_amount=5000, s
 &nbsp;
 
 Display a graph of the performance of the strategy with trade signals, the momentum indicator and the equity curve.
-```
-strat.performance_graph()
-```
 
 ![NI_3y_SAR_graph](images/NI_3y_SAR_graph.png)
 
@@ -135,7 +129,7 @@ strat.performance_graph()
 Platinum with a 20 Day Momentum entry:
 
 ```
-strat = systems.TestStrategy(ticker='&PL', lookback=750, entry_type='momentum', entry_period=20)
+strat = TestStrategy(ticker='&PL', lookback=750, entry_type='momentum', entry_period=20)
 ```
 
 ![Platinum_3y_Momentum_report](images/Platinum_3y_Momentum_report.png)
@@ -143,9 +137,6 @@ strat = systems.TestStrategy(ticker='&PL', lookback=750, entry_type='momentum', 
 &nbsp;
 
 Display a graph of the performance of the strategy with trade signals, the momentum indicator and the equity curve.
-```
-strat.performance_graph()
-```
 
 ![Platinum_3y_Momentum_graph](images/Platinum_3y_Momentum_graph.png)
 
@@ -154,7 +145,7 @@ strat.performance_graph()
 Apple with a 20 Day Channel Breakout entry:
 
 ```
-strat = systems.TestStrategy(ticker='AAPL', start_date='2016-01-01', entry_type='channel_breakout', entry_period=20, ticker_source='yahoo')
+strat = TestStrategy(ticker='AAPL', start_date='2016-01-01', entry_type='channel_breakout', entry_period=20, ticker_source='yahoo')
 ```
 
 ![AAPL_5y_Channel_report](images/AAPL_5y_Channel_report.png)
@@ -162,9 +153,6 @@ strat = systems.TestStrategy(ticker='AAPL', start_date='2016-01-01', entry_type=
 &nbsp;
 
 Display a graph of the performance of the strategy with trade signals and the equity curve.
-```
-strat.performance_graph()
-```
 
 ![AAPL_5y_Channel_graph](images/AAPL_5y_Channel_graph.png)
 
@@ -174,7 +162,7 @@ strat.performance_graph()
 Wheat with a 20 Day Stochastic Pop entry:
 
 ```
-strat = systems.TestStrategy(ticker='&KE', lookback=750, entry_type='stoch_pop', entry_period=20)
+strat = TestStrategy(ticker='&KE', lookback=750, entry_type='stoch_pop', entry_period=20)
 ```
 
 ![Wheat_3y_stoch_pop_report](images/Wheat_3y_stoch_pop_report.png)
@@ -182,9 +170,6 @@ strat = systems.TestStrategy(ticker='&KE', lookback=750, entry_type='stoch_pop',
 &nbsp;
 
 Display a graph of the performance of the strategy with trade signals, the slow-k and slow-d stochastics and the equity curve.
-```
-strat.performance_graph()
-```
 
 ![Wheat_3y_stoch_pop_graph](images/Wheat_3y_stoch_pop_graph.png)
 
@@ -193,7 +178,7 @@ strat.performance_graph()
 GBPUSD with a 10 Day 150% Volatility entry:
 
 ```
-strat = systems.TestStrategy(ccy_1='GBP', ccy_2='USD', lookback=750, ticker_source='alpha', asset_type='fx', entry_type='volatility', exit_amount=5000, stop_amount=2000)
+strat = TestStrategy(ccy_1='GBP', ccy_2='USD', lookback=750, ticker_source='alpha', asset_type='fx', entry_type='volatility', exit_amount=5000, stop_amount=2000)
 ```
 
 ![GBPUSD_3y_volatility_report](images/GBPUSD_3y_volatility_report.png)
@@ -201,12 +186,31 @@ strat = systems.TestStrategy(ccy_1='GBP', ccy_2='USD', lookback=750, ticker_sour
 &nbsp;
 
 Display a graph of the performance of the strategy with trade signals, the 10 Day ATR and the equity curve.
-```
-strat.performance_graph()
-```
+
 
 ![GBPUSD_3y_volatility_graph](images/GBPUSD_3y_volatility_graph.png)
 
+&nbsp;
+
+Changes to the backtest parameters can be made by running the following with the
+relevant key word arguments:
+
+```
+strat.run_backtest(**kwargs)
+```
+&nbsp;
+
+The performance report can be printed with:
+
+```
+strat.performance_report()
+```
+&nbsp;
+
+And the graph of the strategy performance:
+```
+strat.performance_graph()
+```
 &nbsp;
 
 The following volumes served as a reference for some of the methods and report design:

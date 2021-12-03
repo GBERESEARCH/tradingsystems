@@ -36,17 +36,19 @@ class TradeTargets():
 
         """
 
-        prices = cls._exit_targets(
-            prices=prices,
-            exit_amount=params['exit_amount'],
-            trade_price_dict=trade_price_dict,
-            params=params)
+        if params['exit_type'] is not None:
+            prices = cls._exit_targets(
+                prices=prices,
+                exit_amount=params['exit_amount'],
+                trade_price_dict=trade_price_dict,
+                params=params)
 
-        prices = cls._stop_targets(
-            prices=prices,
-            stop_amount=params['stop_amount'],
-            trade_price_dict=trade_price_dict,
-            params=params)
+        if params['stop_type'] is not None:
+            prices = cls._stop_targets(
+                prices=prices,
+                stop_amount=params['stop_amount'],
+                trade_price_dict=trade_price_dict,
+                params=params)
 
         return prices
 
