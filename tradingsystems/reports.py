@@ -7,8 +7,8 @@ import datetime as dt
 from decimal import Decimal
 import numpy as np
 from scipy.stats import skew, kurtosis
-from pnl import Profit
-from winloss import Runs
+from tradingsystems.pnl import Profit
+from tradingsystems.winloss import Runs
 
 
 class PerfReport():
