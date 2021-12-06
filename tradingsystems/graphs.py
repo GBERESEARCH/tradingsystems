@@ -4,6 +4,7 @@ Graph the performance of the trading strategy
 """
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 
 class PerformanceGraph():
     """
@@ -239,6 +240,10 @@ class PerformanceGraph():
         ax1 = plt.subplot2grid((9,1), (0,0), rowspan = 5, colspan = 1)
         ax2 = plt.subplot2grid((9,1), (6,0), rowspan = 3, colspan = 1)
 
+        # Set y-axis to 2 decimal places for FX pairs
+        if params['asset_type'] == 'fx':
+            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
+
         # Plot price against time in the first graph
         ax1.plot(graph_params['dates'],
                  graph_params['price'],
@@ -371,6 +376,10 @@ class PerformanceGraph():
         ax1 = plt.subplot2grid((13,1), (0,0), rowspan = 5, colspan = 1)
         ax2 = plt.subplot2grid((13,1), (6,0), rowspan = 3, colspan = 1)
         ax3 = plt.subplot2grid((13,1), (10,0), rowspan = 3, colspan = 1)
+
+        # Set y-axis to 2 decimal places for FX pairs
+        if params['asset_type'] == 'fx':
+            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
 
         # Plot price against time in the first graph
         ax1.plot(graph_params['dates'],

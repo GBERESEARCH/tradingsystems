@@ -215,7 +215,7 @@ class Trades():
         flag = True
 
         # For each row in the data
-        for row in range(start, len(prices)):
+        for row in range(len(prices)):
 
             # Find the row that relates to the trade exit
             trade_num = trade_number[row]

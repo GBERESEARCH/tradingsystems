@@ -140,9 +140,14 @@ class TestStrategy():
         # Longnames for Norgate Tickers
         self.norgate_name_dict = Markets.norgate_name_dict()
 
-        # Carry out the backtest, print out results report and graph
-        # performance
-        self.backtest_report_graph(**kwargs)
+        if kwargs.get('return_data', False):
+            # Generate backtest
+            self.run_backtest(**kwargs)
+
+        else:
+            # Carry out the backtest, print out results report and graph
+            # performance
+            self.backtest_report_graph(**kwargs)
 
 
     def backtest_report_graph(self, **kwargs):
@@ -202,17 +207,26 @@ class TestStrategy():
             start_date=params['start_date'], end_date=params['end_date'],
             lookback=params['lookback'])
 
-        # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
-        tables = {}
+        if params['refresh_data']:
+            # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
+            tables = {}
 
-        tables['prices'], params = Markets.create_base_data(
-            ticker=params['ticker'], source=params['ticker_source'],
-            params=params, bench_flag=False)
+            tables['prices'], params = Markets.create_base_data(
+                ticker=params['ticker'], source=params['ticker_source'],
+                params=params, bench_flag=False)
 
-        # Extract benchmark data for Beta calculation
-        tables['benchmark'], params = Markets.create_base_data(
-            ticker=params['bench_ticker'], source=params['bench_source'],
-            params=params, bench_flag=True)
+            # Extract benchmark data for Beta calculation
+            tables['benchmark'], params = Markets.create_base_data(
+                ticker=params['bench_ticker'], source=params['bench_source'],
+                params=params, bench_flag=True)
+
+        # Reset the prices and benchmark tables to the source data
+        else:
+            tables = {}
+            tables['prices'] = self.tables['prices'][
+                ['Open', 'High', 'Low', 'Close']]
+            tables['benchmark'] = self.tables['benchmark'][
+                ['Open', 'High', 'Low', 'Close']]
 
         # Set the strategy labels
         labels  = {}

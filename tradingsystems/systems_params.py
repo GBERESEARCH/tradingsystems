@@ -244,6 +244,8 @@ system_params_dict = {
         'ma3':20,
         'ma4':40,
         'simple_ma':True,
+        'return_data':False,
+        'refresh_data':True,
         'fixed_pos_size':5,
         'atr_pos_size':14,
         'position_type':'atr',

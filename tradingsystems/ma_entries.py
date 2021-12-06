@@ -65,8 +65,8 @@ class MovingAverageEntry():
         trade_signal = np.array([0]*len(ma_2))
 
         # Create numpy arrays of zeros to store min and max ma values
-        min_ma = np.array([0]*len(ma_2))
-        max_ma = np.array([0]*len(ma_2))
+        min_ma = np.array([0.0]*len(ma_2))
+        max_ma = np.array([0.0]*len(ma_2))
 
         # for each row in the DataFrame after the longest MA has started
         for row in range(start, len(ma_2)):
@@ -165,8 +165,8 @@ class MovingAverageEntry():
         trade_signal = np.array([0]*len(ma_3))
 
         # Create numpy arrays of zeros to store min and max ma values
-        min_ma = np.array([0]*len(ma_3))
-        max_ma = np.array([0]*len(ma_3))
+        min_ma = np.array([0.0]*len(ma_3))
+        max_ma = np.array([0.0]*len(ma_3))
 
         # for each row in the DataFrame after the longest MA has started
         for row in range(start, len(ma_3)):
@@ -281,8 +281,8 @@ class MovingAverageEntry():
         start = np.where(~np.isnan(ma_4))[0][0]
 
         # Create numpy arrays of zeros to store min and max ma values
-        min_ma = np.array([0]*len(ma_4))
-        max_ma = np.array([0]*len(ma_4))
+        min_ma = np.array([0.0]*len(ma_4))
+        max_ma = np.array([0.0]*len(ma_4))
 
         # for each row in the DataFrame after the longest MA has started
         for row in range(start + 1, len(ma_4)):

@@ -55,10 +55,8 @@ class Markets():
 
         # Extract data from Yahoo Finance
         elif source == 'yahoo':
-            prices = cls._return_yahoo_data(
-                ticker=ticker,
-                start_date=params['start_date'],
-                end_date=params['end_date'])
+            prices, params = cls._return_yahoo_data(
+                ticker=ticker, params=params)
 
         # Extract data from AlphaVantage
         elif source == 'alpha':
@@ -75,10 +73,6 @@ class Markets():
 
         return prices, params
 
-        # Otherwise return error message
-        #except ValueError:
-        #    return 'Select a data source from yahoo, norgate or alpha'
-
 
     @staticmethod
     def _return_norgate_data(ticker, params):
@@ -89,12 +83,13 @@ class Markets():
             start_date=params['start_date'],
             end_date=params['end_date'],
             format=timeseriesformat)
+        params['asset_type'] = 'commodity'
 
         return prices, params
 
 
     @staticmethod
-    def _return_yahoo_data(ticker=None, start_date=None, end_date=None):
+    def _return_yahoo_data(ticker, params):
         """
         Create DataFrame of historic prices for specified ticker using Yahoo
         Finance as the source.
@@ -124,7 +119,7 @@ class Markets():
 
         # Extract historic prices
         prices = yahoo_financials.get_historical_price_data(
-            start_date, end_date, freq)
+            params['start_date'], params['end_date'], freq)
 
         # Reformat columns
         prices = pd.DataFrame(
@@ -141,12 +136,13 @@ class Markets():
         # Set Index to Datetime
         prices.index = pd.to_datetime(prices.index)
 
-        return prices
+        params['asset_type'] = 'equity'
+
+        return prices, params
 
 
     @classmethod
-    def _return_alphavantage_data(
-            cls, ticker=None, params=None):
+    def _return_alphavantage_data(cls, params, ticker=None):
         """
         Create DataFrame of historic prices for specified ticker using
         AlphaVantage as the source.
