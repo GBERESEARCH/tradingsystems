@@ -2,7 +2,8 @@
 Graph the performance of the trading strategy
 
 """
-
+import numpy as np
+import numpy.ma as ma
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
@@ -240,9 +241,13 @@ class PerformanceGraph():
         ax1 = plt.subplot2grid((9,1), (0,0), rowspan = 5, colspan = 1)
         ax2 = plt.subplot2grid((9,1), (6,0), rowspan = 3, colspan = 1)
 
-        # Set y-axis to 2 decimal places for FX pairs
-        if params['asset_type'] == 'fx':
+        # Set y-axis to scale decimal places with price.
+        if max(graph_params['price']) < 10:
             ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
+        elif max(graph_params['price']) < 50:
+            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.1f'))
+        else:
+            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.0f'))
 
         # Plot price against time in the first graph
         ax1.plot(graph_params['dates'],
@@ -453,8 +458,11 @@ class PerformanceGraph():
         """
         # Create empty dictionary
         signal_dict = {}
-        buy_sell_distance = 0.07
-        flat_distance = 0.1
+        upper = graph_params['upper_bound'].max()
+        lower = np.min(ma.masked_where(graph_params['lower_bound']==0,
+                                       graph_params['lower_bound']))
+        buy_sell_distance = 0.10 * (upper - lower) # 0.07
+        flat_distance = 0.15 * (upper - lower) # 0.1
 
         # Buy signal to go long is where the current cumulative signal is to be
         # long when yesterday it was flat
@@ -466,7 +474,8 @@ class PerformanceGraph():
         signal_dict['buy_long_marker'] = (
             graph_params['lower_bound']
             * signal_dict['buy_long_signals']
-            - graph_params['lower_bound'].max()*buy_sell_distance)
+            - buy_sell_distance)
+            #- graph_params['lower_bound'].max()*buy_sell_distance)
 
         signal_dict['buy_long_marker'] = signal_dict[
             'buy_long_marker'][signal_dict['buy_long_signals']]
@@ -485,7 +494,8 @@ class PerformanceGraph():
         signal_dict['buy_flat_marker'] = (
             graph_params['lower_bound']
             * signal_dict['buy_flat_signals']
-            - graph_params['lower_bound'].max()*flat_distance)
+            - flat_distance)
+            #- graph_params['lower_bound'].max()*flat_distance)
 
         signal_dict['buy_flat_marker'] = signal_dict[
             'buy_flat_marker'][signal_dict['buy_flat_signals']]
@@ -504,7 +514,8 @@ class PerformanceGraph():
         signal_dict['sell_flat_marker'] = (
             graph_params['upper_bound']
             * signal_dict['sell_flat_signals']
-            + graph_params['upper_bound'].max()*flat_distance)
+            + flat_distance)
+            #+ graph_params['upper_bound'].max()*flat_distance)
 
         signal_dict['sell_flat_marker'] = signal_dict[
             'sell_flat_marker'][signal_dict['sell_flat_signals']]
@@ -522,7 +533,8 @@ class PerformanceGraph():
         signal_dict['sell_short_marker'] = (
             graph_params['upper_bound']
             * signal_dict['sell_short_signals']
-            + graph_params['upper_bound'].max()*buy_sell_distance)
+            + buy_sell_distance)
+            #+ graph_params['upper_bound'].max()*buy_sell_distance)
 
         signal_dict['sell_short_marker'] = signal_dict[
             'sell_short_marker'][signal_dict['sell_short_signals']]
