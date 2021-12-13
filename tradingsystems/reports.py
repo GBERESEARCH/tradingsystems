@@ -5,10 +5,11 @@ Reporting tools for the trading system data
 
 import datetime as dt
 from decimal import Decimal
+import math
 import numpy as np
 from scipy.stats import skew, kurtosis
-from tradingsystems.pnl import Profit
-from tradingsystems.winloss import Runs
+from pnl import Profit
+from winloss import Runs
 
 
 class PerfReport():
@@ -112,8 +113,9 @@ class PerfReport():
 
         # Annualized total return
         perf_dict['annualized_return'] = (
-            (1 + perf_dict['total_return_rate'])
-            ** (1 / perf_dict['return_period']) - 1)
+            math.copysign(1, perf_dict['total_return_rate'])
+            * ((1 + abs(perf_dict['total_return_rate']))
+               ** (1 / perf_dict['return_period']) - 1))
 
         perf_dict = cls._perf_data_trades(perf_dict=perf_dict, tables=tables)
 
