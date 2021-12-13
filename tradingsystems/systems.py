@@ -6,16 +6,16 @@ results in table and graph form.
 
 # Imports
 import copy
-from tradingsystems.graphs import PerformanceGraph as perfgraph
-from tradingsystems.marketdata import Markets
-from tradingsystems.positions import Positions
-from tradingsystems.pnl import Profit
-from tradingsystems.reports import PerfReport
-from tradingsystems.signals import Signals
-from tradingsystems.systems_params import system_params_dict
-from tradingsystems.targets import TradeTargets
-from tradingsystems.trades import Trades
-from tradingsystems.utils import Labels, Dates, Reformat
+from graphs import PerformanceGraph as perfgraph
+from marketdata import Markets
+from positions import Positions
+from pnl import Profit
+from reports import PerfReport
+from signals import Signals
+from systems_params import system_params_dict
+from targets import TradeTargets
+from trades import Trades
+from utils import Labels, Dates, Reformat
 
 
 class TestStrategy():
@@ -131,12 +131,6 @@ class TestStrategy():
         # Import dictionary of default parameters
         self.default_dict = copy.deepcopy(system_params_dict)
 
-        # Define storage containers
-        self.params = {}
-        self.tables = {}
-        self.labels = {}
-        self.inputs = {}
-
         # Longnames for Norgate Tickers
         self.norgate_name_dict = Markets.norgate_name_dict()
 
@@ -196,43 +190,23 @@ class TestStrategy():
         """
 
         # Store initial inputs
+        inputs = {}
         for key, value in kwargs.items():
-            self.inputs[key] = value
+            inputs[key] = value
 
         # Initialise system parameters
-        params = self._init_params(self.inputs)
+        params = self._init_params(inputs)
 
-        # Set the start and end dates if not provided
-        params['start_date'], params['end_date'] = Dates.date_set(
-            start_date=params['start_date'], end_date=params['end_date'],
-            lookback=params['lookback'])
+        # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
+        tables = kwargs.get('tables', {})
 
-        if params['refresh_data']:
-            # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
-            tables = {}
-
-            tables['prices'], params = Markets.create_base_data(
-                ticker=params['ticker'], source=params['ticker_source'],
-                params=params, bench_flag=False)
-
-            # Extract benchmark data for Beta calculation
-            tables['benchmark'], params = Markets.create_base_data(
-                ticker=params['bench_ticker'], source=params['bench_source'],
-                params=params, bench_flag=True)
-
-        # Reset the prices and benchmark tables to the source data
-        else:
-            tables = {}
-            tables['prices'] = self.tables['prices'][
-                ['Open', 'High', 'Low', 'Close']]
-            tables['benchmark'] = self.tables['benchmark'][
-                ['Open', 'High', 'Low', 'Close']]
+        params, tables = self.prepare_data(params, tables)
 
         # Set the strategy labels
         labels  = {}
         labels['entry_label'], labels['exit_label'], \
             labels['stop_label'] = Labels.strategy_labels(
-                params=params, default_dict=self.default_dict)
+                params=params, default_dict=system_params_dict)
 
         # Generate initial trade data
         tables, params, raw_trade_price_dict = Signals.raw_entry_signals(
@@ -283,7 +257,7 @@ class TestStrategy():
         # Create dictionary of performance data
         tables['perf_dict'] = PerfReport.performance_data(
             tables=tables, params=params, labels=labels,
-            norgate_name_dict=self.norgate_name_dict,)
+            norgate_name_dict=self.norgate_name_dict)
 
         self.params = params
         self.tables = tables
@@ -361,6 +335,32 @@ class TestStrategy():
         return params
 
 
+    @staticmethod
+    def prepare_data(params, tables):
+
+        # Set the start and end dates if not provided
+        params['start_date'], params['end_date'] = Dates.date_set(
+            start_date=params['start_date'], end_date=params['end_date'],
+            lookback=params['lookback'])
+
+        if params['refresh_data']:
+
+            tables['prices'], params = Markets.create_base_data(
+                ticker=params['ticker'], source=params['ticker_source'],
+                params=params, bench_flag=False)
+
+            # Extract benchmark data for Beta calculation
+            tables['benchmark'], params = Markets.create_base_data(
+                ticker=params['bench_ticker'], source=params['bench_source'],
+                params=params, bench_flag=True)
+
+        # Reset the prices and benchmark tables to the source data
+        else:
+            tables, params = Markets.reset_data(tables, params)
+
+        return params, tables
+
+
     def performance_report(self):
         """
         Display the performance report
@@ -424,3 +424,156 @@ class TestStrategy():
                 es_dict=es_dict)
 
         return graph
+
+
+class TestPortfolio():
+
+    def __init__(self, **kwargs):
+
+        self.system_dict = self.run_individual_tests(**kwargs)
+
+
+    def run_individual_tests(self, portfolio, **kwargs):
+        """
+        Run backtests for each of the provided tickers.
+
+        Parameters
+        ----------
+        portfolio : Dict
+            Dictionary of lists of underlying tickers.
+            commodities : List, optional
+                List of commodity tickers in portfolio.
+            stocks : List, optional
+                List of stock tickers in portfolio.
+            fx : List, optional
+                List of fx tickers in portfolio.
+            crypto : List, optional
+                List of crypto tickers in portfolio.
+
+        **kwargs : Dict
+            All other keyword parameter.
+
+        Returns
+        -------
+        system_dict : Dict
+            Dictionary containing returns data for each underlying.
+
+        """
+        system_dict = {}
+        for market, underlying_list in portfolio.items():
+            print(market)
+            for underlying in underlying_list:
+                print(underlying)
+
+                if market == 'commodities':
+                    strat = TestStrategy(ticker=underlying,
+                                         ticker_source='norgate',
+                                         **kwargs)
+                elif (market == 'equities'
+                      and kwargs.get('equity_source', 'yahoo') == 'yahoo'):
+                    strat = TestStrategy(ticker=underlying,
+                                         ticker_source='yahoo',
+                                         **kwargs)
+                else:
+                    strat = TestStrategy(ticker=underlying,
+                                         ticker_source='alpha',
+                                         **kwargs)
+
+                system_dict[underlying] = {'model':strat}
+                system_dict[underlying].update(
+                    {'prices':strat.tables['prices']})
+                system_dict[underlying].update(
+                    {'monthly_data':strat.tables['monthly_data']})
+
+        return system_dict
+
+
+    def _run_individual_tests(self, portfolio, **kwargs):
+        """
+        Run backtests for each of the provided tickers.
+
+        Parameters
+        ----------
+        portfolio : Dict
+            Dictionary of lists of underlying tickers.
+            commodities : List, optional
+                List of commodity tickers in portfolio.
+            stocks : List, optional
+                List of stock tickers in portfolio.
+            fx : List, optional
+                List of fx tickers in portfolio.
+            crypto : List, optional
+                List of crypto tickers in portfolio.
+
+        **kwargs : Dict
+            All other keyword parameter.
+
+        Returns
+        -------
+        system_dict : Dict
+            Dictionary containing returns data for each underlying.
+
+        """
+        system_dict = {}
+        data = kwargs.get('data', None)
+        for market, underlying_list in portfolio.items():
+            print(market)
+            for underlying in underlying_list:
+                print(underlying)
+                if data is not None:
+                    start = str(data[0][1].index[0].date())
+                    end = str(data[0][1].index[-1].date())
+                else:
+                    start is None
+                    end is None
+
+                if market == 'commodities':
+                    strat = TestStrategy(ticker=underlying,
+                                         ticker_source='norgate',
+                                         start_date = start,
+                                         end_date = end,
+                                         **kwargs)
+                elif (market == 'equities'
+                      and kwargs.get('equity_source', 'yahoo') == 'yahoo'):
+                    strat = TestStrategy(ticker=underlying,
+                                         ticker_source='yahoo',
+                                         **kwargs)
+                else:
+                    strat = TestStrategy(ticker=underlying,
+                                         ticker_source='alpha',
+                                         **kwargs)
+
+                system_dict[underlying] = {'model':strat}
+                system_dict[underlying].update(
+                    {'prices':strat.tables['prices']})
+                system_dict[underlying].update(
+                    {'monthly_data':strat.tables['monthly_data']})
+
+
+        return system_dict
+
+
+    @staticmethod
+    def prep_portfolio(data, portfolio, asset_class, num_tickers):
+        """
+        Prepare portfolio of tickers from top trend data
+
+        Parameters
+        ----------
+        data : TrendStrength object
+            Model containing the top trend data.
+        portfolio : Dict
+            Dictionary to contain asset classes and ticker lists.
+        asset_class : Str
+            String describing the asset class.
+
+        Returns
+        -------
+        portfolio : Dict
+            Dictionary to contain asset classes and ticker lists..
+
+        """
+        input_list = data.top_trends['top_ticker_list'][:num_tickers]
+        portfolio.update({asset_class:list(zip(*input_list))[0]})
+
+        return portfolio
