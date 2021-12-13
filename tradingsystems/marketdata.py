@@ -74,6 +74,39 @@ class Markets():
         return prices, params
 
 
+    @classmethod
+    def reset_data(cls, tables, params):
+        """
+        Reset price table to initial data
+
+        Parameters
+        ----------
+        tables : Dict
+            Dictionary of key tables.
+        params : Dict
+            Dictionary of key parameters.
+
+        Returns
+        -------
+        table_reset : Dict
+            Dictionary with prices table reset.
+        params : Dict
+            Dictionary of key parameters with contract data updated.
+
+        """
+        tables_reset = {}
+        tables_reset['prices'] = tables['prices'][
+            ['Open', 'High', 'Low', 'Close']]
+        tables_reset['benchmark'] = tables['benchmark'][
+            ['Open', 'High', 'Low', 'Close']]
+
+        params = cls._contract_data(
+                ticker=params['ticker'], prices=tables['prices'],
+                params=params)
+
+        return tables_reset, params
+
+
     @staticmethod
     def _return_norgate_data(ticker, params):
 
@@ -413,6 +446,8 @@ class Markets():
     def _contract_data(ticker, prices, params):
 
         if ticker[0] == '&':
+            if ticker[-4:] == '_CCB':
+                ticker = ticker[:-4]
             params['front_ticker'] = (
                 ticker[1:]
                 +'-'
