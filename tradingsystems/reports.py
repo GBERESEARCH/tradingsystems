@@ -213,7 +213,7 @@ class PerfReport():
         # Return of a buy and hold strategy of SPX since the first trade entry
         perf_dict['long_only_pnl_spx'] = (
             (tables['benchmark']['Close'].iloc[-1]
-             - tables['benchmark']['Open'].loc[params['first_trade_date']]) *
+             - tables['benchmark']['Open'].loc[params['benchmark_start_date']]) *
             params['init_benchmark_position_size'])
 
         # Annual Rate of return of buy and hold of SPX

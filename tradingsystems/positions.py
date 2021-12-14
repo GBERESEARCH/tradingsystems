@@ -7,7 +7,9 @@ import math
 import numpy as np
 from technicalmethods.methods import Indicators
 import pandas as pd
+from pandas.tseries.offsets import BDay
 pd.options.mode.chained_assignment = None
+
 
 class Positions():
     """
@@ -283,18 +285,14 @@ class Positions():
             prices, params = cls._fixed_position_size(
                 prices=prices, params=params)
 
-        # Calculate benchmark position size
-        benchmark, params = cls._benchmark_position_size(
-            benchmark=benchmark, params=params)
-
         # Set the initial position size to that of the first trade
         params['init_position_size'] = prices[
             'position_size'].loc[params['first_trade_date']]
 
-        # Set the initial benchmark position size to that calculated as of the
-        # same date
-        params['init_benchmark_position_size'] = benchmark[
-            'benchmark_position_size'].loc[params['first_trade_date']]
+        # Calculate benchmark position size
+        benchmark, params = cls._benchmark_position_size(
+            benchmark=benchmark, params=params)
+
 
         return prices, benchmark, params
 
@@ -307,16 +305,30 @@ class Positions():
 
         # Set the number of units to use a percentage of starting equity at
         # the point when trade signals begin
-        benchmark_units = math.floor(
-            (params['equity']
-             / benchmark['Close'].loc[params['first_trade_date']])
-            * params['equity_inv_perc'])
+        try:
+            benchmark_units = math.floor(
+                (params['equity']
+                 / benchmark['Close'].loc[params['first_trade_date']])
+                * params['equity_inv_perc'])
+            params['benchmark_start_date'] = params['first_trade_date']
+
+        except KeyError:
+            params['benchmark_start_date'] = params['first_trade_date'] - BDay(1)
+            benchmark_units = math.floor(
+                (params['equity']
+                 / benchmark['Close'].loc[params['benchmark_start_date']])
+                * params['equity_inv_perc'])
 
         # Set the position size series to the number of units, starting from
         # the point that trade signals can be generated
         benchmark['benchmark_position_size'][
             benchmark.index.get_loc(
-                params['first_trade_date']):] = benchmark_units
+                params['benchmark_start_date']):] = benchmark_units
+
+        # Set the initial benchmark position size to that calculated as of the
+        # same date
+        params['init_benchmark_position_size'] = benchmark[
+            'benchmark_position_size'].loc[params['benchmark_start_date']]
 
         return benchmark, params
 
