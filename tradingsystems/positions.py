@@ -306,7 +306,7 @@ class Positions():
         # Set the number of units to use a percentage of starting equity at
         # the point when trade signals begin
         try:
-            benchmark_units = math.floor(
+            benchmark_units = math.ceil(
                 (params['equity']
                  / benchmark['Close'].loc[params['first_trade_date']])
                 * params['equity_inv_perc'])
@@ -314,7 +314,7 @@ class Positions():
 
         except KeyError:
             params['benchmark_start_date'] = params['first_trade_date'] - BDay(1)
-            benchmark_units = math.floor(
+            benchmark_units = math.ceil(
                 (params['equity']
                  / benchmark['Close'].loc[params['benchmark_start_date']])
                 * params['equity_inv_perc'])
@@ -344,7 +344,7 @@ class Positions():
 
         # Set the number of units to use a percentage of starting equity at
         # the point when trade signals begin
-        units = math.floor(
+        units = math.ceil(
             (params['equity']
              / prices['Close'].loc[params['first_trade_date']])
             * params['equity_inv_perc']
@@ -397,7 +397,7 @@ class Positions():
 
                     # Set the number of units to use a percentage of starting
                     # equity at the point when trade signals begin
-                    prices['position_size'][row] = math.floor(
+                    prices['position_size'][row] = math.ceil(
                         (params['equity'] / prices['Close'][row])
                         * params['equity_inv_perc']
                         / params['contract_point_value'])
@@ -452,7 +452,7 @@ class Positions():
 
                         # Size the position for each trade based on a fraction
                         # of the ATR
-                        prices['position_size'][row] = math.floor(
+                        prices['position_size'][row] = math.ceil(
                             (params['equity'] * (params['position_risk_bps']
                                                  / 10000))
                             / (prices['position_ATR'][row]
