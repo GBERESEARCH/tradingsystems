@@ -196,9 +196,9 @@ class PerformanceGraph():
         return graph_params
 
 
-    @staticmethod
+    @classmethod
     def _two_panel_setup(
-            prices=None, graph_params=None, params=None, es_dict=None):
+            cls, prices=None, graph_params=None, params=None, es_dict=None):
         """
         Set up the 2 panel chart
 
@@ -241,13 +241,8 @@ class PerformanceGraph():
         ax1 = plt.subplot2grid((9,1), (0,0), rowspan = 5, colspan = 1)
         ax2 = plt.subplot2grid((9,1), (6,0), rowspan = 3, colspan = 1)
 
-        # Set y-axis to scale decimal places with price.
-        if max(graph_params['price']) < 10:
-            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
-        elif max(graph_params['price']) < 50:
-            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.1f'))
-        else:
-            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.0f'))
+        ax1 = cls._axis_scale(
+            ax1=ax1, graph_params=graph_params, params=params)
 
         # Plot price against time in the first graph
         ax1.plot(graph_params['dates'],
@@ -344,7 +339,7 @@ class PerformanceGraph():
 
     @staticmethod
     def _three_panel_setup(
-            prices=None, graph_params=None, params=None, es_dict=None):
+            cls, prices=None, graph_params=None, params=None, es_dict=None):
         """
         Set up the 3 panel chart
 
@@ -382,9 +377,8 @@ class PerformanceGraph():
         ax2 = plt.subplot2grid((13,1), (6,0), rowspan = 3, colspan = 1)
         ax3 = plt.subplot2grid((13,1), (10,0), rowspan = 3, colspan = 1)
 
-        # Set y-axis to 2 decimal places for FX pairs
-        if params['asset_type'] == 'fx':
-            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
+        ax1 = cls._axis_scale(
+            ax1=ax1, graph_params=graph_params, params=params)
 
         # Plot price against time in the first graph
         ax1.plot(graph_params['dates'],
@@ -435,9 +429,30 @@ class PerformanceGraph():
         return ax1, ax2, ax3
 
 
-    @staticmethod
+    @classmethod
+    def _axis_scale(cls, ax1, graph_params, params):
+
+        # Set y-axis to 2 decimal places for FX pairs
+        if params['asset_type'] == 'fx':
+            ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
+
+        else:
+            upper, lower = cls._set_upper_lower(graph_params=graph_params)
+
+            # Set y-axis to scale decimal places with price.
+            if (upper - lower) < 10:
+                ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.2f'))
+            elif (upper - lower) < 30:
+                ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.1f'))
+            else:
+                ax1.yaxis.set_major_formatter(FormatStrFormatter('% 1.0f'))
+
+        return ax1
+
+
+    @classmethod
     def _create_signals(
-            prices=None, graph_params=None):
+            cls, prices=None, graph_params=None):
         """
         Create trade signals to be plotted on main price chart
 
@@ -458,9 +473,8 @@ class PerformanceGraph():
         """
         # Create empty dictionary
         signal_dict = {}
-        upper = graph_params['upper_bound'].max()
-        lower = np.min(ma.masked_where(graph_params['lower_bound']==0,
-                                       graph_params['lower_bound']))
+        upper, lower = cls._set_upper_lower(graph_params=graph_params)
+
         buy_sell_distance = 0.10 * (upper - lower) # 0.07
         flat_distance = 0.15 * (upper - lower) # 0.1
 
@@ -544,6 +558,17 @@ class PerformanceGraph():
             signal_dict['sell_short_signals']]
 
         return signal_dict
+
+
+    @staticmethod
+    def _set_upper_lower(graph_params):
+        # Set upper to the max of the upper bound and lower to the lowest
+        # non-zero value of the lower bound
+        upper = graph_params['upper_bound'].max()
+        lower = np.min(ma.masked_where(graph_params['lower_bound']==0,
+                                       graph_params['lower_bound']))
+
+        return upper, lower
 
 
     @staticmethod
