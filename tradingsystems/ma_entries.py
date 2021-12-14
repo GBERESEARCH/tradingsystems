@@ -287,74 +287,61 @@ class MovingAverageEntry():
         # for each row in the DataFrame after the longest MA has started
         for row in range(start + 1, len(ma_4)):
 
+            if ma_1[row] > ma_2[row] > ma_3[row] > ma_4[row]:
+                position_signal[row] = 1
+            elif ma_1[row] < ma_2[row] < ma_3[row] < ma_4[row]:
+                position_signal[row] = -1
+            else:
+                position_signal[row] = 0
+
             # Calculate the min and max ma values
             min_ma[row] = min(ma_1[row], ma_2[row], prices['Close'][row])
             max_ma[row] = max(ma_1[row], ma_2[row], prices['Close'][row])
 
-            # If the second slowest MA is above the slowest MA
-            if ma_3[row] > ma_4[row]:
+            # If the position signal is to be long
+            if position_signal[row] == 1:
 
-                # If the fastest MA crosses above the second fastest MA
-                if ma_1[row] > ma_2[row] and ma_1[row - 1] < ma_2[row - 1]:
-
-                    # Set the position signal to long
-                    position_signal[row] = 1
+                # If the previous day was not long
+                if position_signal[row - 1] != 1:
 
                     # Signal to go long
-                    trade_signal[row] = 1 - position_signal[row-1]
-
-                # If the fastest MA crosses below the second fastest MA
-                elif ma_1[row] < ma_2[row] and ma_1[row - 1] > ma_2[row - 1]:
-
-                    # If there is a position on
-                    if position_signal[row-1] != 0:
-
-                        # Set the position signal to flat
-                        position_signal[row] = 0
-
-                        # Signal to close out long
-                        trade_signal[row] = -1
+                    trade_signal[row] = 1 - position_signal[row - 1]
 
                 # Otherwise, take no action
                 else:
                     trade_signal[row] = 0
-                    position_signal[row] = position_signal[row-1]
 
+            # If the position signal is to be short
+            elif position_signal[row] == -1:
 
-            # If the second slowest MA is below the slowest MA
-            else:
-
-                # If the fastest MA crosses below the second fastest MA
-                if ma_1[row] < ma_2[row] and ma_1[row - 1] > ma_2[row - 1]:
-
-                    # Set the position signal to short
-                    position_signal[row] = -1
+                # If the previous day was not short
+                if position_signal[row - 1] != -1:
 
                     # Signal to go short
                     trade_signal[row] = -1 - position_signal[row-1]
 
-                # If the fastest MA crosses above the second fastest MA
-                elif ma_1[row] > ma_2[row] and ma_1[row - 1] < ma_2[row - 1]:
-
-                    # If there is a position on
-                    if position_signal[row-1] != 0:
-
-                        # Set the position to flat
-                        position_signal[row] = 0
-
-                        # Signal to close out short
-                        trade_signal[row] = 1
-
                 # Otherwise, take no action
                 else:
                     trade_signal[row] = 0
-                    position_signal[row] = position_signal[row-1]
+
+            # If the position signal is to be flat
+            else:
+                # If the previous day was not flat
+                if position_signal[row - 1] != 0:
+
+                    # Signal to go flat
+                    trade_signal[row] = -position_signal[row-1]
+
+                else:
+                    # Otherwise, take no action
+                    trade_signal[row] = 0
 
         # Assign the series to the OHLC data
         prices['ma_1'] = ma_1
         prices['ma_2'] = ma_2
         prices['ma_3'] = ma_3
         prices['ma_4'] = ma_4
+        prices['position_signal'] = position_signal
         prices['min_ma'] = min_ma
         prices['max_ma'] = max_ma
 

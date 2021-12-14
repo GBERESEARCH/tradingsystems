@@ -17,10 +17,10 @@ system_params_dict = {
     'df_start_date':None,
     'df_end_date':None,
     'df_lookback':750,
-    'df_ma1':5,
-    'df_ma2':12,
-    'df_ma3':20,
-    'df_ma4':40,
+    'df_ma1':10,
+    'df_ma2':20,
+    'df_ma3':50,
+    'df_ma4':100,
     'df_simple_ma':True,
     'df_fixed_pos_size':5,
     'df_atr_pos_size':14,
@@ -124,10 +124,10 @@ system_params_dict = {
             'ma3':18
             },
         '4ma':{
-            'ma1':5,
-            'ma2':12,
-            'ma3':20,
-            'ma4':40
+            'ma1':10,
+            'ma2':20,
+            'ma3':50,
+            'ma4':100
             },
         'sar':{
             'entry_acceleration_factor':0.02
@@ -239,10 +239,10 @@ system_params_dict = {
         'start_date':None,
         'end_date':None,
         'lookback':750,
-        'ma1':5,
-        'ma2':12,
-        'ma3':20,
-        'ma4':40,
+        'ma1':10,
+        'ma2':20,
+        'ma3':50,
+        'ma4':100,
         'simple_ma':True,
         'return_data':False,
         'refresh_data':True,
@@ -251,6 +251,7 @@ system_params_dict = {
         'position_type':'atr',
         'ticker_source':'norgate',
         'bench_source':'norgate',
+        'equity_source':'yahoo',
         'slippage':5.0,
         'commission':0.00,
         'riskfree':0.0025,
