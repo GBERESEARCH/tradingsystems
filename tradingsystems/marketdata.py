@@ -16,7 +16,7 @@ class Markets():
     """
     @classmethod
     def create_base_data(
-            cls, ticker=None, source=None, params=None, bench_flag=None):
+            cls, ticker=None, source=None, params=None):
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
 
@@ -66,10 +66,6 @@ class Markets():
         else:
             raise ValueError(
                 'Select a data source from yahoo, norgate or alpha')
-
-        if bench_flag is False:
-            params = cls._contract_data(
-                ticker=ticker, prices=prices, params=params)
 
         return prices, params
 
@@ -443,7 +439,7 @@ class Markets():
 
 
     @staticmethod
-    def _contract_data(ticker, prices, params):
+    def contract_data(ticker, prices, params):
 
         if ticker[0] == '&':
             if ticker[-4:] == '_CCB':

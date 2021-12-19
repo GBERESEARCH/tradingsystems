@@ -246,6 +246,7 @@ system_params_dict = {
         'simple_ma':True,
         'return_data':False,
         'refresh_data':True,
+        'input_data':'refresh',
         'fixed_pos_size':5,
         'atr_pos_size':14,
         'position_type':'atr',

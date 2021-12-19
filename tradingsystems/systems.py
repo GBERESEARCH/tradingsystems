@@ -335,28 +335,84 @@ class TestStrategy():
         return params
 
 
+    @classmethod
+    def prepare_data(cls, params, tables, market_data=None):
+        """
+        Get market data ready to be analysed
+
+        Parameters
+        ----------
+        params : TYPE
+            DESCRIPTION.
+        tables : TYPE
+            DESCRIPTION.
+        data : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        params : TYPE
+            DESCRIPTION.
+        tables : TYPE
+            DESCRIPTION.
+
+        """
+        params = cls._prepare_dates(params=params, market_data=market_data)
+
+        params, tables = cls._prepare_ticker_data(
+            params=params, tables=tables, market_data=market_data)
+
+        params, tables = cls._prepare_benchmark_data(
+            params=params, tables=tables)
+
+        return params, tables
+
+
     @staticmethod
-    def prepare_data(params, tables):
+    def _prepare_dates(params, market_data=None):
 
-        # Set the start and end dates if not provided
-        params['start_date'], params['end_date'] = Dates.date_set(
-            start_date=params['start_date'], end_date=params['end_date'],
-            lookback=params['lookback'])
+        if market_data is None:
+            # Set the start and end dates if not provided
+            params['start_date'], params['end_date'] = Dates.date_set(
+                start_date=params['start_date'], end_date=params['end_date'],
+                lookback=params['lookback'])
 
-        if params['refresh_data']:
+        else:
+            params['start_date'] = str(market_data[0][1].index[0].date())
+            params['end_date'] = str(market_data[0][1].index[-1].date())
 
+        return params
+
+
+    @staticmethod
+    def _prepare_ticker_data(params, tables, market_data=None):
+
+        if params['input_data'] == 'reset':
+            # Reset the prices and benchmark tables to the source data
+            tables, params = Markets.reset_data(tables, params)
+
+        elif params['input_data'] == 'set':
+            tables['prices'] = market_data
+
+
+        else:
             tables['prices'], params = Markets.create_base_data(
                 ticker=params['ticker'], source=params['ticker_source'],
-                params=params, bench_flag=False)
+                params=params)
 
-            # Extract benchmark data for Beta calculation
-            tables['benchmark'], params = Markets.create_base_data(
-                ticker=params['bench_ticker'], source=params['bench_source'],
-                params=params, bench_flag=True)
+            params = Markets.contract_data(
+                ticker=params['ticker'], prices=tables['prices'],
+                params=params)
 
-        # Reset the prices and benchmark tables to the source data
-        else:
-            tables, params = Markets.reset_data(tables, params)
+        return params, tables
+
+    @staticmethod
+    def _prepare_benchmark_data(tables, params):
+
+        # Extract benchmark data for Beta calculation
+        tables['benchmark'], params = Markets.create_base_data(
+            ticker=params['bench_ticker'], source=params['bench_source'],
+            params=params)
 
         return params, tables
 
@@ -413,24 +469,25 @@ class TestStrategy():
         # For these entry strategies just plot the price chart and equity curve
         if self.params['entry_type'] in [
                 '2ma', '3ma', '4ma', 'sar', 'channel_breakout']:
-            graph = perfgraph.two_panel_graph(
+            self.params = perfgraph.two_panel_graph(
                 signals=signals, tables=self.tables, params=self.params,
                 es_dict=es_dict)
 
         # Otherwise also plot the relevant indicator
         else:
-            graph = perfgraph.three_panel_graph(
-                signals=signals, tables=self.tables, params=self.params,
-                es_dict=es_dict)
+            self.params = perfgraph.three_panel_graph(
+            signals=signals, tables=self.tables, params=self.params,
+            es_dict=es_dict)
 
-        return graph
+        return self
 
 
 class TestPortfolio():
 
     def __init__(self, **kwargs):
 
-        self.system_dict = self.run_individual_tests(**kwargs)
+        #self.system_dict = self.run_individual_tests(**kwargs)
+        self.system_dict = self.run_individual_tests_with_data(**kwargs)
 
 
     def run_individual_tests(self, portfolio, **kwargs):
@@ -460,6 +517,7 @@ class TestPortfolio():
 
         """
         system_dict = {}
+        # benchmark_calc = False
         for market, underlying_list in portfolio.items():
             print(market)
             for underlying in underlying_list:
@@ -488,7 +546,7 @@ class TestPortfolio():
         return system_dict
 
 
-    def _run_individual_tests(self, portfolio, **kwargs):
+    def run_individual_tests_with_data(self, portfolio, **kwargs):
         """
         Run backtests for each of the provided tickers.
 
@@ -515,46 +573,48 @@ class TestPortfolio():
 
         """
         system_dict = {}
-        data = kwargs.get('data', None)
-        for market, underlying_list in portfolio.items():
+        #data = kwargs.get('data', None)
+        for market, underlying_dict in portfolio.items():
             print(market)
-            for underlying in underlying_list:
-                print(underlying)
-                if data is not None:
-                    start = str(data[0][1].index[0].date())
-                    end = str(data[0][1].index[-1].date())
-                else:
-                    start is None
-                    end is None
+            for ticker, market_data in underlying_dict.items():
+                print(ticker)
+                #if data is not None:
+                #    start = str(data[0][1].index[0].date())
+                #    end = str(data[0][1].index[-1].date())
+                #else:
+                #    start is None
+                #    end is None
 
                 if market == 'commodities':
-                    strat = TestStrategy(ticker=underlying,
+                    strat = TestStrategy(ticker=ticker,
                                          ticker_source='norgate',
-                                         start_date = start,
-                                         end_date = end,
+                                         market_data=market_data,
+                                         #start_date = start,
+                                         #end_date = end,
                                          **kwargs)
                 elif (market == 'equities'
                       and kwargs.get('equity_source', 'yahoo') == 'yahoo'):
-                    strat = TestStrategy(ticker=underlying,
+                    strat = TestStrategy(ticker=ticker,
                                          ticker_source='yahoo',
+                                         market_data=market_data,
                                          **kwargs)
                 else:
-                    strat = TestStrategy(ticker=underlying,
+                    strat = TestStrategy(ticker=ticker,
                                          ticker_source='alpha',
+                                         market_data=market_data,
                                          **kwargs)
 
-                system_dict[underlying] = {'model':strat}
-                system_dict[underlying].update(
+                system_dict[ticker] = {'model':strat}
+                system_dict[ticker].update(
                     {'prices':strat.tables['prices']})
-                system_dict[underlying].update(
+                system_dict[ticker].update(
                     {'monthly_data':strat.tables['monthly_data']})
-
 
         return system_dict
 
 
     @staticmethod
-    def prep_portfolio(data, portfolio, asset_class, num_tickers):
+    def prep_portfolio_list(data, portfolio, asset_class, num_tickers):
         """
         Prepare portfolio of tickers from top trend data
 
@@ -566,6 +626,8 @@ class TestPortfolio():
             Dictionary to contain asset classes and ticker lists.
         asset_class : Str
             String describing the asset class.
+        num_tickers : Int
+            The number of tickers to choose
 
         Returns
         -------
@@ -575,5 +637,36 @@ class TestPortfolio():
         """
         input_list = data.top_trends['top_ticker_list'][:num_tickers]
         portfolio.update({asset_class:list(zip(*input_list))[0]})
+
+        return portfolio
+
+
+    @staticmethod
+    def prep_portfolio_dict(data, portfolio, asset_class, num_tickers):
+        """
+        Prepare portfolio of tickers from top trend data
+
+        Parameters
+        ----------
+        data : TrendStrength object
+            Model containing the top trend data.
+        portfolio : Dict
+            Dictionary to contain asset classes and ticker lists.
+        asset_class : Str
+            String describing the asset class.
+        num_tickers : Int
+            The number of tickers to choose
+
+        Returns
+        -------
+        portfolio : Dict
+            Dictionary to contain asset classes and ticker lists..
+
+        """
+        input_dict = {}
+        for rank, pair in data.top_trends['top_ticker_dict'].items():
+            if rank < num_tickers:
+                input_dict[pair[0]] = pair[1]
+        portfolio.update({asset_class:input_dict})
 
         return portfolio

@@ -434,6 +434,10 @@ class Positions():
         # Extract the raw trade signal from the OHLC data
         trade_number = prices['raw_trade_number']
 
+        # Set a limit to the amount of margin used
+        max_contracts = math.ceil((params['equity']
+                                   / params['per_contract_margin']) * 0.15)
+
         # For each row since the first trade entry
         for row in range(params['first_trade_start'], len(prices['Close'])):
 
@@ -452,11 +456,11 @@ class Positions():
 
                         # Size the position for each trade based on a fraction
                         # of the ATR
-                        prices['position_size'][row] = math.ceil(
+                        prices['position_size'][row] = min(math.ceil(
                             (params['equity'] * (params['position_risk_bps']
                                                  / 10000))
                             / (prices['position_ATR'][row]
-                               * params['contract_point_value']))
+                               * params['contract_point_value'])), max_contracts)
 
                     # Otherwise
                     else:

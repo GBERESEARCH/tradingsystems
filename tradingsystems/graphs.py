@@ -2,8 +2,6 @@
 Graph the performance of the trading strategy
 
 """
-import numpy as np
-import numpy.ma as ma
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
@@ -58,8 +56,13 @@ class PerformanceGraph():
             ax1, ax2 = cls._two_panel_legend(
                 ax1=ax1, ax2=ax2, perf_dict=tables['perf_dict'])
 
+        params['graph_params'] = graph_params
+        params['signal_dict'] = signal_dict
+
         # Plot the graphs
         plt.show()
+
+        return params
 
 
     @classmethod
@@ -122,8 +125,13 @@ class PerformanceGraph():
                 params=params,
                 entry_signal_labels=es_dict['entry_signal_labels'])
 
+        params['graph_params'] = graph_params
+        params['signal_dict'] = signal_dict
+
         # Plot the graphs
         plt.show()
+
+        return params
 
 
     @staticmethod
@@ -563,10 +571,12 @@ class PerformanceGraph():
     @staticmethod
     def _set_upper_lower(graph_params):
         # Set upper to the max of the upper bound and lower to the lowest
-        # non-zero value of the lower bound
-        upper = graph_params['upper_bound'].max()
-        lower = np.min(ma.masked_where(graph_params['lower_bound']==0,
-                                       graph_params['lower_bound']))
+        # non-zero value of the lower bound, stripping zeros and nan values
+
+        upper = graph_params['upper_bound'][
+            graph_params['upper_bound'] != 0].dropna().max()
+        lower = graph_params['lower_bound'][
+            graph_params['lower_bound'] != 0].dropna().min()
 
         return upper, lower
 
