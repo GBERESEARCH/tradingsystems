@@ -431,15 +431,33 @@ class Positions():
             prices['High'], prices['Low'], prices['Close'],
             params['atr_pos_size'])
 
+        # Replace nan values with difference between high and low prices
+        prices['position_ATR'] = np.where(
+            np.isnan(prices['position_ATR']),
+            prices['High'] - prices['Low'],
+            prices['position_ATR'])
+
+        #if np.isnan(prices['position_ATR'][row]):
+        #    prices['position_ATR'][row] = (
+        #        prices['High'][row] - prices['Low'][row])
+
         # Extract the raw trade signal from the OHLC data
         trade_number = prices['raw_trade_number']
 
-        # Set a limit to the amount of margin used
-        max_contracts = math.ceil((params['equity']
-                                   / params['per_contract_margin']) * 0.15)
+        max_contracts = np.array(
+            [0] * len(prices['Close']), dtype=int)
 
         # For each row since the first trade entry
         for row in range(params['first_trade_start'], len(prices['Close'])):
+
+            # Set a limit to the amount of margin used
+            if params['ticker_source'] == 'norgate':
+                max_contracts[row] = math.ceil(
+                    (params['equity'] / params['per_contract_margin']) * 0.15)
+            else:
+                max_contracts[row] = math.ceil(
+                    (params['equity'] * params['margin_%'])
+                    / prices['Close'][row])
 
             # If the is a trade on
             if trade_number[row] != 0:
@@ -452,20 +470,21 @@ class Positions():
                 if row == trade_first_row:
 
                     # If we can calculate the ATR
-                    if row > params['atr_pos_size']:
+                    #if row > params['atr_pos_size']:
 
-                        # Size the position for each trade based on a fraction
-                        # of the ATR
-                        prices['position_size'][row] = min(math.ceil(
-                            (params['equity'] * (params['position_risk_bps']
-                                                 / 10000))
-                            / (prices['position_ATR'][row]
-                               * params['contract_point_value'])), max_contracts)
+                    # Size the position for each trade based on a fraction
+                    # of the ATR
+                    prices['position_size'][row] = min(math.ceil(
+                        (params['equity'] * (params['position_risk_bps']
+                                             / 10000))
+                        / (prices['position_ATR'][row]
+                           * params['contract_point_value'])),
+                        max_contracts[row])
 
                     # Otherwise
-                    else:
+                    #else:
                         # Set the position size to 1
-                        prices['position_size'][row] = 1
+                    #    prices['position_size'][row] = 1
 
                 # For every other day in the trade take the entry size
                 else:

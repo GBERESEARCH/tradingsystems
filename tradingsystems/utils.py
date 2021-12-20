@@ -389,16 +389,30 @@ class Reformat():
             Dictionary of the 3 arrays, scaled by the position sizes.
 
         """
-        # Create empty dictionary
-        scaled_dict = {}
 
-        # For each kew, value combination in the raw position dictionary
-        for key, value in pos_dict.items():
+        sod = pos_dict['start_of_day_position']
+        ta = pos_dict['trade_action']
+        eod = pos_dict['end_of_day_position']
+        start_of_day_position = np.array([0] * len(sod), dtype=int)
+        trade_action = np.array([0] * len(sod), dtype=int)
+        end_of_day_position = np.array([0] * len(sod), dtype=int)
 
-            # Multiply the array by the position size array
-            scaled_dict[key] = value * position_size
+        for row in range(1, len(sod)):
+            start_of_day_position[row] = sod[row] * position_size[row-1]
+            if ta[row] != 0:
+                trade_action[row] = (
+                    (-eod[row-1] * position_size[row-1]) + (
+                        (ta[row] + eod[row-1]) * position_size[row]))
+            end_of_day_position[row] = (
+                start_of_day_position[row] + trade_action[row])
 
-        return scaled_dict
+        scaled_pos_dict = {}
+        scaled_pos_dict['start_of_day_position'] = np.array(
+            start_of_day_position)
+        scaled_pos_dict['trade_action'] = np.array(trade_action)
+        scaled_pos_dict['end_of_day_position'] = np.array(end_of_day_position)
+
+        return scaled_pos_dict
 
 
     @staticmethod

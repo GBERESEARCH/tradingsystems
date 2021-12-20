@@ -96,7 +96,7 @@ class Markets():
         tables_reset['benchmark'] = tables['benchmark'][
             ['Open', 'High', 'Low', 'Close']]
 
-        params = cls._contract_data(
+        params = cls.contract_data(
                 ticker=params['ticker'], prices=tables['prices'],
                 params=params)
 

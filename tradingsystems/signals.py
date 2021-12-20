@@ -4,13 +4,13 @@ Entry and Exit signals
 """
 import numpy as np
 import pandas as pd
-from tradingsystems.dollar_exits import DollarExit
-from tradingsystems.indicator_entries import IndicatorEntry
-from tradingsystems.indicator_exits import IndicatorExit
-from tradingsystems.ma_entries import MovingAverageEntry
-from tradingsystems.positions import Positions
-from tradingsystems.trades import Trades
-from tradingsystems.utils import Labels, Reformat
+from dollar_exits import DollarExit
+from indicator_entries import IndicatorEntry
+from indicator_exits import IndicatorExit
+from ma_entries import MovingAverageEntry
+from positions import Positions
+from trades import Trades
+from utils import Labels, Reformat
 
 class Signals():
     """
@@ -90,7 +90,7 @@ class Signals():
         params = Labels.position_size_label(params)
 
         # Scale the position info by the position size
-        raw_pos_dict = Reformat.position_scale(
+        scaled_pos_dict = Reformat.position_scale(
             pos_dict=raw_pos_dict,
             position_size=tables['prices']['position_size'])
 
@@ -102,7 +102,7 @@ class Signals():
         # Map the raw positions to the OHLC data
         tables['prices'] = Reformat.map_to_prices(
             prices=tables['prices'],
-            input_dict=raw_pos_dict,
+            input_dict=scaled_pos_dict,
             title_modifier='raw_')
 
         # Map the raw trade prices to the OHLC data

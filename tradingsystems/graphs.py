@@ -345,7 +345,7 @@ class PerformanceGraph():
         return ax1, ax2
 
 
-    @staticmethod
+    @classmethod
     def _three_panel_setup(
             cls, prices=None, graph_params=None, params=None, es_dict=None):
         """
