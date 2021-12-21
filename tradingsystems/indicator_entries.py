@@ -622,7 +622,7 @@ class IndicatorEntry():
         # for each row in the DataFrame after the cci has started
         for row in range(start, len(rsi)):
 
-            # If the cci crosses above the threshold from below
+            # If the rsi crosses above the threshold from below
             if rsi[row] < oversold < rsi[row-1]:
 
                 # Set the position signal to long
@@ -631,7 +631,7 @@ class IndicatorEntry():
                 # Signal to go long
                 trade_signal[row] = 1 - position_signal[row-1]
 
-            # If the cci crosses below the threshold from above
+            # If the rsi crosses below the threshold from above
             elif rsi[row] > overbought > rsi[row-1]:
 
                 # Set the position signal to short
@@ -647,6 +647,77 @@ class IndicatorEntry():
 
         # Assign the series to the OHLC data
         prices['RSI_entry'] = rsi
+
+        return prices, start, trade_signal
+
+
+    @staticmethod
+    def entry_adx(prices, time_period, threshold):
+
+        # Create ADX, di_plus, di_minus for the specified time period
+        adx, di_plus, di_minus = Indicators.ADX(
+            close=prices['Close'],
+            high=prices['High'],
+            low=prices['Low'],
+            time_period=time_period,
+            dmi=True)
+
+
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(adx))[0][0]
+
+
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(adx))
+
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(adx))
+
+
+        # for each row in the DataFrame after the adx has started
+        for row in range(start, len(adx)):
+
+            # if the adx is above threshold
+            if adx[row] > threshold:
+
+                # if prices are trending up
+                if di_plus[row] > di_minus[row]:
+
+                    # Set the position signal to long
+                    position_signal[row] = 1
+
+                    # Signal to go long
+                    trade_signal[row] = 1 - position_signal[row-1]
+
+                # if prices are trending down
+                else:
+
+                    # Set the position signal to short
+                    position_signal[row] = -1
+
+                    # Signal to go short
+                    trade_signal[row] = -1 - position_signal[row-1]
+
+            # if the adx is below the threshold
+            else:
+                # If the current position is flat
+                if position_signal[row-1] == 0:
+
+                    # Take no action
+                    trade_signal[row] = 0
+                    position_signal[row] = position_signal[row-1]
+
+                # If there is a trade on
+                else:
+
+                    # Reverse the current position
+                    trade_signal[row] = -position_signal[row-1]
+                    position_signal[row] = 0
+
+
+        prices['ADX_entry'] = adx
+        prices['DI_plus_entry'] = di_plus
+        prices['DI_minus_entry'] = di_minus
 
         return prices, start, trade_signal
 

@@ -88,8 +88,9 @@ class PerformanceGraph():
                 prices=tables['prices'], entry_type=params['entry_type'],
                 entry_signal_indicators=es_dict['entry_signal_indicators'])
 
-        # All but the Stochastic Entry methods use a single indicator column
-        if 'stoch' not in params['entry_type']:
+        # All but the Stochastic & ADX Entry methods use a single indicator
+        # column
+        if ('stoch' and 'adx') not in params['entry_type']:
             indicator = tables['prices'][
                 es_dict['entry_signal_indicators'][params['entry_type']]]
         else:
@@ -415,6 +416,33 @@ class PerformanceGraph():
                      color='red',
                      linewidth=1.5,
                      label='Slow d')
+
+        elif 'adx' in params['entry_type']:
+
+            # Take the ADX, DI_plus and DI_minus values from the core DataFrame
+            adx = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][0]]
+            di_plus = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][1]]
+            di_minus = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][2]]
+
+            # Plot these in the second chart
+            ax2.plot(graph_params['dates'],
+                     adx,
+                     color='black',
+                     linewidth=2,
+                     label='ADX')
+            ax2.plot(graph_params['dates'],
+                     di_plus,
+                     color='blue',
+                     linewidth=1.5,
+                     label='DI+')
+            ax2.plot(graph_params['dates'],
+                     di_minus,
+                     color='red',
+                     linewidth=1.5,
+                     label='DI-')
 
         # Otherwise
         else:
@@ -757,6 +785,8 @@ class PerformanceGraph():
         ax2.set_title(str(params['entry_period'])
                       +'-day '
                       +entry_signal_labels[params['entry_type']])
+        if 'adx' in params['entry_type']:
+            ax2.legend(loc=2)
         ax3.set_title("Equity Curve")
         ax3.set_ylabel('Equity')
         ax1.legend()

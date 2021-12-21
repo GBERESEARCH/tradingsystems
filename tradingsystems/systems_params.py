@@ -69,6 +69,8 @@ system_params_dict = {
         'stoch_pop':(
             'slow_k_entry', 'slow_d_entry'),
         'rsi':'RSI_entry',
+        'adx':(
+            'ADX_entry', 'DI_plus_entry', 'DI_minus_entry'),
         'cci':'CCI_entry',
         'momentum':'momentum',
         'volatility':'ATR_entry'
@@ -85,6 +87,7 @@ system_params_dict = {
         'stoch_over_under':'Stochastic Over Under',
         'stoch_pop':'Stochastic Pop',
         'rsi':'Relative Strength Index',
+        'adx':'ADX',
         'cci':'Commodity Channel Index',
         'momentum':'Momentum',
         'volatility':'Volatility'
@@ -154,6 +157,9 @@ system_params_dict = {
             'entry_period':14,
             'entry_oversold':30,
             'entry_overbought':70
+            },
+        'adx':{
+            'adx_threshold':25
             },
         'cci':{
             'entry_period':20,
@@ -272,6 +278,7 @@ system_params_dict = {
         'exit_overbought':75,
         'entry_acceleration_factor':0.02,
         'exit_acceleration_factor':0.02,
+        'adx_threshold':25,
         'sip_price':False,
         'signals':True,
         'api_key':'',

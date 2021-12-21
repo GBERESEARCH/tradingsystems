@@ -231,6 +231,14 @@ class Signals():
                     oversold=params['entry_oversold'],
                     overbought=params['entry_overbought'])
 
+        # ADX
+        elif params['entry_type'] == 'adx':
+            tables['prices'], start, \
+                signal = IndicatorEntry.entry_adx(
+                    tables['prices'],
+                    time_period=params['entry_period'],
+                    threshold=params['adx_threshold'])
+
         # Commodity Channel Index
         elif params['entry_type'] == 'cci':
             tables['prices'], start, \

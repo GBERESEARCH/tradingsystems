@@ -129,8 +129,8 @@ class Labels():
                               params['entry_type']])
 
 
-        # Channel Breakout
-        elif params['entry_type'] == 'channel_breakout':
+        # Channel Breakout, ADX
+        elif params['entry_type'] in ['channel_breakout', 'adx']:
 
             # Set the entry label
             entry_label = (str(params['entry_period'])
