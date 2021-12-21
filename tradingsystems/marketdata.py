@@ -50,17 +50,19 @@ class Markets():
         #try:
         # Extract data from Norgate
         if source == 'norgate':
-            prices, params = cls._return_norgate_data(
+            prices = cls.return_norgate_data(
                 ticker=ticker, params=params)
+            params['asset_type'] = 'commodity'
 
         # Extract data from Yahoo Finance
         elif source == 'yahoo':
-            prices, params = cls._return_yahoo_data(
+            prices = cls.return_yahoo_data(
                 ticker=ticker, params=params)
+            params['asset_type'] = 'equity'
 
         # Extract data from AlphaVantage
         elif source == 'alpha':
-            prices = cls._return_alphavantage_data(
+            prices = cls.return_alphavantage_data(
                 ticker=ticker, params=params)
 
         else:
@@ -104,21 +106,39 @@ class Markets():
 
 
     @staticmethod
-    def _return_norgate_data(ticker, params):
+    def return_norgate_data(ticker, params):
+        """
+        Create DataFrame of historic prices for specified ticker using Norgate
+        Data as the source.
 
+        Parameters
+        ----------
+        ticker : Str
+            Norgate data ticker.
+        params : Dict
+            start_date : Str, optional
+                Date to begin backtest. Format is 'YYYY-MM-DD'.
+            end_date : Str, optional
+                Date to end backtest. Format is 'YYYY-MM-DD'.
+
+        Returns
+        -------
+        prices : DataFrame
+            DataFrame of historic prices for given ticker.
+
+        """
         timeseriesformat = 'pandas-dataframe'
         prices = norgatedata.price_timeseries(
             symbol=ticker,
             start_date=params['start_date'],
             end_date=params['end_date'],
             format=timeseriesformat)
-        params['asset_type'] = 'commodity'
 
-        return prices, params
+        return prices
 
 
     @staticmethod
-    def _return_yahoo_data(ticker, params):
+    def return_yahoo_data(ticker, params):
         """
         Create DataFrame of historic prices for specified ticker using Yahoo
         Finance as the source.
@@ -128,10 +148,11 @@ class Markets():
         ticker : Int
             Stock to be returned in the form of Reuters RIC code as a
             string.
-        start_date : Str, optional
-            Date to begin backtest. Format is 'YYYY-MM-DD'.
-        end_date : Str, optional
-            Date to end backtest. Format is 'YYYY-MM-DD'.
+        params : Dict
+            start_date : Str, optional
+                Date to begin backtest. Format is 'YYYY-MM-DD'.
+            end_date : Str, optional
+                Date to end backtest. Format is 'YYYY-MM-DD'.
         freq : Int
             Frequency of data - set to 'daily'.
 
@@ -165,13 +186,11 @@ class Markets():
         # Set Index to Datetime
         prices.index = pd.to_datetime(prices.index)
 
-        params['asset_type'] = 'equity'
-
-        return prices, params
+        return prices
 
 
     @classmethod
-    def _return_alphavantage_data(cls, params, ticker=None):
+    def return_alphavantage_data(cls, params, ticker=None):
         """
         Create DataFrame of historic prices for specified ticker using
         AlphaVantage as the source.

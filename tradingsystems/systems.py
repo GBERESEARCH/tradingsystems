@@ -573,6 +573,8 @@ class TestPortfolio():
 
         """
         system_dict = {}
+        start_date = kwargs.get('start_date', None)
+        end_date = kwargs.get('end_date', None)
         #data = kwargs.get('data', None)
         for market, underlying_dict in portfolio.items():
             print(market)
@@ -609,6 +611,16 @@ class TestPortfolio():
                     {'prices':strat.tables['prices']})
                 system_dict[ticker].update(
                     {'monthly_data':strat.tables['monthly_data']})
+
+                if start_date is None:
+                    start_date = strat.params['start_date']
+                if end_date is None:
+                    end_date = strat.params['end_date']
+
+        params = {}
+        params['start_date'] = start_date
+        params['end_date'] = end_date
+        system_dict['benchmark'] = Markets.return_norgate_data('$SPX', params)
 
         return system_dict
 
