@@ -685,7 +685,7 @@ class PerformanceGraph():
         """
 
         # For all the indicators other than momentum and volatility
-        if params['entry_type'] not in ['momentum', 'volatility']:
+        if params['entry_type'] not in ['momentum', 'volatility', 'adx']:
 
             # Plot horizontal overbought and oversold lines
             axis.axhline(
@@ -711,6 +711,13 @@ class PerformanceGraph():
                     dates, indicator, params['entry_oversold'],
                     where=indicator<=params['entry_oversold'],
                     interpolate=True, color='red')
+
+        if params['entry_type'] == 'adx':
+            # Plot horizontal trend threshold
+            axis.axhline(
+                y=params['adx_threshold'],
+                color='black',
+                linewidth=2)
 
         return axis
 
