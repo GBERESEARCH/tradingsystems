@@ -2,6 +2,7 @@
 Graph the performance of the trading strategy
 
 """
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
@@ -88,9 +89,10 @@ class PerformanceGraph():
                 prices=tables['prices'], entry_type=params['entry_type'],
                 entry_signal_indicators=es_dict['entry_signal_indicators'])
 
-        # All but the Stochastic & ADX Entry methods use a single indicator
-        # column
-        if ('stoch' and 'adx') not in params['entry_type']:
+        # All but the Stochastic, ADX and MACD Entry methods use a single
+        # indicator column
+        if params['entry_type'] not in ['stoch_cross', 'stoch_pop',
+                                        'stoch_over_under', 'adx', 'macd']:
             indicator = tables['prices'][
                 es_dict['entry_signal_indicators'][params['entry_type']]]
         else:
@@ -99,10 +101,16 @@ class PerformanceGraph():
         # Set the matplotlib style to use for the charts
         with plt.style.context('fivethirtyeight'):
 
-            # Set up the 3 graphs
-            ax1, ax2, ax3 = cls._three_panel_setup(
-                prices=tables['prices'], graph_params=graph_params,
-                params=params, es_dict=es_dict)
+            if params['entry_type'] == 'macd':
+                # Set up the 3 graphs
+                ax1, ax2, ax3, axt = cls._three_panel_setup(
+                    prices=tables['prices'], graph_params=graph_params,
+                    params=params, es_dict=es_dict)
+            else:
+                # Set up the 3 graphs
+                ax1, ax2, ax3 = cls._three_panel_setup(
+                    prices=tables['prices'], graph_params=graph_params,
+                    params=params, es_dict=es_dict)
 
             # If signals are to be plotted
             if signals:
@@ -119,12 +127,24 @@ class PerformanceGraph():
                 axis=ax2, dates=graph_params['dates'], indicator=indicator,
                 params=params)
 
+            if params['entry_type'] == 'macd':
+                axt = cls._indicator_format(
+                    axis=axt, dates=graph_params['dates'], indicator=indicator,
+                    params=params)
+
             # Add legend, labels and titles to the graphs
-            axes = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3}
-            ax1, ax2, ax3 = cls._three_panel_legend(
-                axes=axes, perf_dict=tables['perf_dict'],
-                params=params,
-                entry_signal_labels=es_dict['entry_signal_labels'])
+            if params['entry_type'] == 'macd':
+                axes = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3, 'axt':axt}
+                ax1, ax2, ax3, axt = cls._three_panel_legend(
+                    axes=axes, perf_dict=tables['perf_dict'],
+                    params=params,
+                    entry_signal_labels=es_dict['entry_signal_labels'])
+            else:
+                axes = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3}
+                ax1, ax2, ax3 = cls._three_panel_legend(
+                    axes=axes, perf_dict=tables['perf_dict'],
+                    params=params,
+                    entry_signal_labels=es_dict['entry_signal_labels'])
 
         params['graph_params'] = graph_params
         params['signal_dict'] = signal_dict
@@ -444,6 +464,52 @@ class PerformanceGraph():
                      linewidth=1.5,
                      label='DI-')
 
+        elif 'macd' in params['entry_type']:
+
+            # Take the ADX, DI_plus and DI_minus values from the core DataFrame
+            macd = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][0]]
+            macd_signal = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][1]]
+            macd_hist = prices[
+                es_dict['entry_signal_indicators'][params['entry_type']][2]]
+
+            #num_dates = list(range(1, len(graph_params['dates']) + 1))
+            #cat_dates = []
+            #for date in num_dates:
+            #    cat_dates.append(str(date))
+
+            # Plot these in the second chart
+            ax2.plot(graph_params['dates'], #cat_dates,
+                     macd,
+                     color='blue',
+                     linewidth=0.5,
+                     label='MACD')
+            ax2.plot(graph_params['dates'], #cat_dates,
+                     macd_signal,
+                     color='red',
+                     linewidth=0.5,
+                     label='Signal')
+            #ax2 = macd_hist.plot(
+            #    kind='bar',
+            #    color=cls._bar_color(macd_hist, 'g', 'r'),
+            #    label='Histogram')
+            axt = ax2.twinx()
+            axt.bar(graph_params['dates'], #cat_dates,
+                    macd_hist,
+                    color=cls._bar_color(macd_hist,'g','r'),
+                    width=1,
+                    label='MACD_Hist')
+
+            ax2_lim = np.round(max(np.nanmax(np.absolute(macd)),
+                                   np.nanmax(np.absolute(macd_signal))))
+            axt_lim = np.round(np.nanmax(np.absolute(macd_hist)))
+            ax2.set_ylim(-ax2_lim, ax2_lim)
+            axt.set_ylim(-axt_lim, axt_lim)
+
+            #ax2.set_xticks([])
+            #axt.set_xticks([])
+
         # Otherwise
         else:
             # Take the indicator column based on entry type and plot in the
@@ -462,7 +528,37 @@ class PerformanceGraph():
                  linewidth=1.5,
                  label='MTM Equity')
 
-        return ax1, ax2, ax3
+        for axis in [ax1, ax2, ax3]:
+            axis.set_xlim(graph_params['dates'][0], graph_params['dates'][-1])
+
+        if 'macd' in params['entry_type']:
+            axt.set_xlim(graph_params['dates'][0], graph_params['dates'][-1])
+            return ax1, ax2, ax3, axt
+        else:
+            return ax1, ax2, ax3
+
+
+    @staticmethod
+    def _bar_color(price_data, color1, color2):
+        """
+        Set barchart color to green if positive and red if negative.
+
+        Parameters
+        ----------
+        price_data : Series
+            Price data.
+        color1 : Str
+            Color for positive data.
+        color2 : Str
+            Color for negative data.
+
+        Returns
+        -------
+        Series
+            Series of colors for each data point.
+
+        """
+        return np.where(price_data.values > 0, color1, color2).T
 
 
     @classmethod
@@ -684,8 +780,8 @@ class PerformanceGraph():
 
         """
 
-        # For all the indicators other than momentum and volatility
-        if params['entry_type'] not in ['momentum', 'volatility', 'adx']:
+        # For all the indicators other than momentum, volatility, adx and macd
+        if params['entry_type'] not in ['momentum', 'volatility', 'adx', 'macd']:
 
             # Plot horizontal overbought and oversold lines
             axis.axhline(
@@ -718,6 +814,13 @@ class PerformanceGraph():
                 y=params['adx_threshold'],
                 color='black',
                 linewidth=2)
+
+        if params['entry_type'] == 'macd':
+            # Plot horizontal zero line
+            axis.axhline(
+                y=0,
+                color='black',
+                linewidth=1)
 
         return axis
 
@@ -792,10 +895,18 @@ class PerformanceGraph():
         ax2.set_title(str(params['entry_period'])
                       +'-day '
                       +entry_signal_labels[params['entry_type']])
-        if 'adx' in params['entry_type']:
+        if params['entry_type'] in ['adx', 'macd', 'stoch_cross', 'stoch_pop',
+                                    'stoch_over_under']:
             ax2.legend(loc=2)
         ax3.set_title("Equity Curve")
         ax3.set_ylabel('Equity')
         ax1.legend()
 
-        return ax1, ax2, ax3
+        if params['entry_type'] == 'macd':
+            axt = axes['axt']
+            ax2.set_ylabel('MACD - Signal')
+            axt.set_ylabel('Histogram')
+            ax2.set_title(entry_signal_labels[params['entry_type']])
+            return ax1, ax2, ax3, axt
+        else:
+            return ax1, ax2, ax3
