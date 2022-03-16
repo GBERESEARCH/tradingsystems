@@ -6,16 +6,16 @@ results in table and graph form.
 
 # Imports
 import copy
-from graphs import PerformanceGraph as perfgraph
-from marketdata import Markets
-from positions import Positions
-from pnl import Profit
-from reports import PerfReport
-from signals import Signals
-from systems_params import system_params_dict
-from targets import TradeTargets
-from trades import Trades
-from utils import Labels, Dates, Reformat
+from tradingsystems.graphs import PerformanceGraph as perfgraph
+from tradingsystems.marketdata import Markets
+from tradingsystems.positions import Positions
+from tradingsystems.pnl import Profit
+from tradingsystems.reports import PerfReport
+from tradingsystems.signals import Signals
+from tradingsystems.systems_params import system_params_dict
+from tradingsystems.targets import TradeTargets
+from tradingsystems.trades import Trades
+from tradingsystems.utils import Labels, Dates, Reformat
 
 
 class TestStrategy():

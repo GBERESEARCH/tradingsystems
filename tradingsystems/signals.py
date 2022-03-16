@@ -4,13 +4,13 @@ Entry and Exit signals
 """
 import numpy as np
 import pandas as pd
-from dollar_exits import DollarExit
-from indicator_entries import IndicatorEntry
-from indicator_exits import IndicatorExit
-from ma_entries import MovingAverageEntry
-from positions import Positions
-from trades import Trades
-from utils import Labels, Reformat
+from tradingsystems.dollar_exits import DollarExit
+from tradingsystems.indicator_entries import IndicatorEntry
+from tradingsystems.indicator_exits import IndicatorExit
+from tradingsystems.ma_entries import MovingAverageEntry
+from tradingsystems.positions import Positions
+from tradingsystems.trades import Trades
+from tradingsystems.utils import Labels, Reformat
 
 class Signals():
     """
