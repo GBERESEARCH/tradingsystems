@@ -166,6 +166,20 @@ class Labels():
                            +default_dict['df_entry_signal_labels'][
                                params['entry_type']])
 
+
+        # MACD
+        elif params['entry_type'] == 'macd':
+
+            # Set the entry label
+            entry_label = (str(params['macd_params'][0])
+                           +'-'
+                           +str(params['macd_params'][1])
+                           +'-'
+                           +str(params['macd_params'][2])
+                           +' : '
+                           +default_dict['df_entry_signal_labels'][
+                               params['entry_type']])
+
         # Otherwise raise an error
         else:
             raise ValueError("Please enter a valid entry type")

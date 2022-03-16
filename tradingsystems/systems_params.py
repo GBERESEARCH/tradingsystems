@@ -71,6 +71,8 @@ system_params_dict = {
         'rsi':'RSI_entry',
         'adx':(
             'ADX_entry', 'DI_plus_entry', 'DI_minus_entry'),
+        'macd':(
+            'MACD_entry', 'MACD_Signal_entry', 'MACD_Hist_entry'),
         'cci':'CCI_entry',
         'momentum':'momentum',
         'volatility':'ATR_entry'
@@ -88,6 +90,7 @@ system_params_dict = {
         'stoch_pop':'Stochastic Pop',
         'rsi':'Relative Strength Index',
         'adx':'ADX',
+        'macd':'MACD',
         'cci':'Commodity Channel Index',
         'momentum':'Momentum',
         'volatility':'Volatility'
@@ -160,6 +163,9 @@ system_params_dict = {
             },
         'adx':{
             'adx_threshold':25
+            },
+        'macd':{
+            'macd_params':(12, 26, 9)
             },
         'cci':{
             'entry_period':20,
@@ -279,6 +285,7 @@ system_params_dict = {
         'entry_acceleration_factor':0.02,
         'exit_acceleration_factor':0.02,
         'adx_threshold':25,
+        'macd_params':(12, 26, 9),
         'sip_price':False,
         'signals':True,
         'api_key':'',

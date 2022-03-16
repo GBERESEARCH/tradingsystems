@@ -239,6 +239,13 @@ class Signals():
                     time_period=params['entry_period'],
                     threshold=params['adx_threshold'])
 
+        # MACD
+        elif params['entry_type'] == 'macd':
+            tables['prices'], start, \
+                signal = IndicatorEntry.entry_macd(
+                    tables['prices'],
+                    macd_params=params['macd_params'])
+
         # Commodity Channel Index
         elif params['entry_type'] == 'cci':
             tables['prices'], start, \

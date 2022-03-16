@@ -653,7 +653,28 @@ class IndicatorEntry():
 
     @staticmethod
     def entry_adx(prices, time_period, threshold):
+        """
+        Entry signals based on the ADX indicator.
 
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data
+        time_period : Int
+            The number of days to use in the indicator calculation.
+        threshold : Int
+            The level to determine if the market is trending.
+
+        Returns
+        -------
+        prices : DataFrame
+            The OHLC data with additional columns.
+        start : Int
+            The first valid date row to calculate from.
+        trade_signal : Series
+            The series of Buy / Sell signals
+
+        """
         # Create ADX, di_plus, di_minus for the specified time period
         adx, di_plus, di_minus = Indicators.ADX(
             close=prices['Close'],
@@ -662,10 +683,8 @@ class IndicatorEntry():
             time_period=time_period,
             dmi=True)
 
-
         # Create start point based on lookback window
         start = np.where(~np.isnan(adx))[0][0]
-
 
         # Create numpy array of zeros to store position signals
         position_signal = np.array([0]*len(adx))
@@ -718,6 +737,73 @@ class IndicatorEntry():
         prices['ADX_entry'] = adx
         prices['DI_plus_entry'] = di_plus
         prices['DI_minus_entry'] = di_minus
+
+        return prices, start, trade_signal
+
+
+    @staticmethod
+    def entry_macd(prices, macd_params):
+        """
+        Entry signals based on the MACD indicator.
+
+        Parameters
+        ----------
+        prices : DataFrame
+            The OHLC data
+        macd_params : Tuple
+            The MACD parameter values for MACD line, Signal line and Histogram.
+
+        Returns
+        -------
+        prices : DataFrame
+            The OHLC data with additional columns.
+        start : Int
+            The first valid date row to calculate from.
+        trade_signal : Series
+            The series of Buy / Sell signals
+
+        """
+        macd, macd_signal, macd_hist = Indicators.MACD(
+            close=prices['Close'],
+            fast=macd_params[0],
+            slow=macd_params[1],
+            signal=macd_params[2])
+
+        # Create start point based on lookback window
+        start = np.where(~np.isnan(macd_hist))[0][0]
+
+
+        # Create numpy array of zeros to store position signals
+        position_signal = np.array([0]*len(macd_hist))
+
+        # Create numpy array of zeros to store trade signals
+        trade_signal = np.array([0]*len(macd_hist))
+
+
+        # for each row in the DataFrame after the MACD Hist has started
+        for row in range(start, len(macd_hist)):
+
+            # If the MACD Histogram is positive
+            if macd_hist[row] > 0:
+
+                # Set the position signal to long
+                position_signal[row] = 1
+
+                # Signal to go long
+                trade_signal[row] = 1 - position_signal[row-1]
+
+            # If the MACD Histogram is negative
+            else:
+
+                # Set the position signal to short
+                position_signal[row] = -1
+
+                # Signal to go short
+                trade_signal[row] = -1 - position_signal[row-1]
+
+        prices['MACD_entry'] = macd
+        prices['MACD_Signal_entry'] = macd_signal
+        prices['MACD_Hist_entry'] = macd_hist
 
         return prices, start, trade_signal
 

@@ -12,8 +12,10 @@
   - Stochastic Crossover
   - Stochastic Over Under
   - Stochastic Pop
-  - Relative Strength Index
-  - Commodity Channel Index
+  - Relative Strength Index (RSI)
+  - Average Directional Index (ADX)
+  - Moving Average Convergence Divergence (MACD)
+  - Commodity Channel Index (CCI)
   - Momentum
   - Volatility
 
