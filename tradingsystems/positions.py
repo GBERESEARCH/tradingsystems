@@ -451,7 +451,8 @@ class Positions():
         for row in range(params['first_trade_start'], len(prices['Close'])):
 
             # Set a limit to the amount of margin used
-            if params['ticker_source'] == 'norgate':
+            if ((params['ticker_source'] == 'norgate')
+                and (params['ticker'][0] == '&')):
                 max_contracts[row] = math.ceil(
                     (params['equity'] / params['per_contract_margin']) * 0.15)
             else:
