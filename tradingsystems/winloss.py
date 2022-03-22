@@ -8,7 +8,7 @@ import pandas as pd
 
 class Runs():
     """
-    Calculate data on winniing and losing trades and win/loss runs
+    Calculate data on winning and losing trades and win/loss runs
 
     """
 

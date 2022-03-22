@@ -405,7 +405,7 @@ class Reformat():
         """
 
         sod = pos_dict['start_of_day_position']
-        ta = pos_dict['trade_action']
+        tact = pos_dict['trade_action']
         eod = pos_dict['end_of_day_position']
         start_of_day_position = np.array([0] * len(sod), dtype=int)
         trade_action = np.array([0] * len(sod), dtype=int)
@@ -413,10 +413,10 @@ class Reformat():
 
         for row in range(1, len(sod)):
             start_of_day_position[row] = sod[row] * position_size[row-1]
-            if ta[row] != 0:
+            if tact[row] != 0:
                 trade_action[row] = (
                     (-eod[row-1] * position_size[row-1]) + (
-                        (ta[row] + eod[row-1]) * position_size[row]))
+                        (tact[row] + eod[row-1]) * position_size[row]))
             end_of_day_position[row] = (
                 start_of_day_position[row] + trade_action[row])
 

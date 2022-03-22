@@ -2,11 +2,11 @@
 Market Data functions
 """
 import os
-import norgatedata
 import numpy as np
 import pandas as pd
 import requests
 from yahoofinancials import YahooFinancials
+# pylint: disable=import-outside-toplevel
 
 class Markets():
     """
@@ -50,15 +50,13 @@ class Markets():
         #try:
         # Extract data from Norgate
         if source == 'norgate':
-            prices = cls.return_norgate_data(
+            prices = NorgateFunctions.return_norgate_data(
                 ticker=ticker, params=params)
-            params['asset_type'] = 'commodity'
 
         # Extract data from Yahoo Finance
         elif source == 'yahoo':
             prices = cls.return_yahoo_data(
                 ticker=ticker, params=params)
-            params['asset_type'] = 'equity'
 
         # Extract data from AlphaVantage
         elif source == 'alpha':
@@ -98,43 +96,14 @@ class Markets():
         tables_reset['benchmark'] = tables['benchmark'][
             ['Open', 'High', 'Low', 'Close']]
 
-        params = cls.contract_data(
-                ticker=params['ticker'], prices=tables['prices'],
-                params=params)
+        if params['ticker'][0] == '&':
+            params = NorgateFunctions.contract_data(
+                    ticker=params['ticker'], prices=tables['prices'],
+                    params=params)
+        else:
+            params['contract_point_value'] = 1
 
         return tables_reset, params
-
-
-    @staticmethod
-    def return_norgate_data(ticker, params):
-        """
-        Create DataFrame of historic prices for specified ticker using Norgate
-        Data as the source.
-
-        Parameters
-        ----------
-        ticker : Str
-            Norgate data ticker.
-        params : Dict
-            start_date : Str, optional
-                Date to begin backtest. Format is 'YYYY-MM-DD'.
-            end_date : Str, optional
-                Date to end backtest. Format is 'YYYY-MM-DD'.
-
-        Returns
-        -------
-        prices : DataFrame
-            DataFrame of historic prices for given ticker.
-
-        """
-        timeseriesformat = 'pandas-dataframe'
-        prices = norgatedata.price_timeseries(
-            symbol=ticker,
-            start_date=params['start_date'],
-            end_date=params['end_date'],
-            format=timeseriesformat)
-
-        return prices
 
 
     @staticmethod
@@ -457,9 +426,66 @@ class Markets():
         return prices
 
 
+class NorgateFunctions():
+    """
+    Methods using an import from Norgate Data
+
+    """
+
+    @staticmethod
+    def return_norgate_data(ticker, params):
+        """
+        Create DataFrame of historic prices for specified ticker using Norgate
+        Data as the source.
+
+        Parameters
+        ----------
+        ticker : Str
+            Norgate data ticker.
+        params : Dict
+            start_date : Str, optional
+                Date to begin backtest. Format is 'YYYY-MM-DD'.
+            end_date : Str, optional
+                Date to end backtest. Format is 'YYYY-MM-DD'.
+
+        Returns
+        -------
+        prices : DataFrame
+            DataFrame of historic prices for given ticker.
+
+        """
+        import norgatedata
+        timeseriesformat = 'pandas-dataframe'
+        prices = norgatedata.price_timeseries(
+            symbol=ticker,
+            start_date=params['start_date'],
+            end_date=params['end_date'],
+            format=timeseriesformat)
+
+        return prices
+
+
     @staticmethod
     def contract_data(ticker, prices, params):
+        """
+        Specifies per-contract-margin and contract-point-value data
 
+        Parameters
+        ----------
+        ticker : Str
+            Norgate data ticker.
+        prices : DataFrame
+            DataFrame of historic prices for given ticker.
+        params : Dict
+            Dictionary of key parameters.
+
+        Returns
+        -------
+        params : Dict
+            Dictionary of key parameters.
+
+        """
+        import norgatedata
         if ticker[0] == '&':
             if ticker[-4:] == '_CCB':
                 ticker = ticker[:-4]
@@ -482,9 +508,9 @@ class Markets():
 
 
     @staticmethod
-    def norgate_name_dict():
+    def get_norgate_name_dict():
         """
-        Create a dictionary of the long names of the Norgate tickers.
+        Creates a dictionary of the long names of the Norgate tickers.
 
         Returns
         -------
@@ -492,7 +518,7 @@ class Markets():
             Dictionary lookup of Norgate tickers to long names.
 
         """
-
+        import norgatedata
         # Get list of the available databases
         alldatabasenames = norgatedata.databases()
 

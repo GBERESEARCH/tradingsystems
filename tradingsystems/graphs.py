@@ -5,6 +5,8 @@ Graph the performance of the trading strategy
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+# pylint: disable=unbalanced-tuple-unpacking
+# pylint: disable=no-else-return
 
 class PerformanceGraph():
     """

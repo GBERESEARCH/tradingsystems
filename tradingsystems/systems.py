@@ -7,7 +7,7 @@ results in table and graph form.
 # Imports
 import copy
 from tradingsystems.graphs import PerformanceGraph as perfgraph
-from tradingsystems.marketdata import Markets
+from tradingsystems.marketdata import Markets, NorgateFunctions
 from tradingsystems.positions import Positions
 from tradingsystems.pnl import Profit
 from tradingsystems.reports import PerfReport
@@ -132,7 +132,7 @@ class TestStrategy():
         self.default_dict = copy.deepcopy(system_params_dict)
 
         # Longnames for Norgate Tickers
-        self.norgate_name_dict = Markets.norgate_name_dict()
+        self.norgate_name_dict = {}
 
         if kwargs.get('return_data', False):
             # Generate backtest
@@ -196,6 +196,14 @@ class TestStrategy():
 
         # Initialise system parameters
         params = self._init_params(inputs)
+
+        # Longnames for Norgate Tickers
+        if params['ticker_source'] == 'norgate':
+            self.norgate_name_dict = NorgateFunctions.get_norgate_name_dict()
+            params['asset_type'] = 'commodity'
+
+        if params['ticker_source'] == 'yahoo':
+            params['asset_type'] = 'equity'
 
         # Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
         tables = kwargs.get('tables', {})
@@ -400,9 +408,12 @@ class TestStrategy():
                 ticker=params['ticker'], source=params['ticker_source'],
                 params=params)
 
-            params = Markets.contract_data(
-                ticker=params['ticker'], prices=tables['prices'],
-                params=params)
+            if params['ticker'][0] == '&':
+                params = NorgateFunctions.contract_data(
+                    ticker=params['ticker'], prices=tables['prices'],
+                    params=params)
+            else:
+                params['contract_point_value'] = 1
 
         return params, tables
 
@@ -410,9 +421,14 @@ class TestStrategy():
     def _prepare_benchmark_data(tables, params):
 
         # Extract benchmark data for Beta calculation
-        tables['benchmark'], params = Markets.create_base_data(
-            ticker=params['bench_ticker'], source=params['bench_source'],
-            params=params)
+        if params['ticker_source'] == 'norgate':
+            tables['benchmark'], params = Markets.create_base_data(
+                ticker=params['bench_ticker'], source=params['bench_source'],
+                params=params)
+        else:
+            tables['benchmark'], params = Markets.create_base_data(
+                ticker='SPY', source='yahoo',
+                params=params)
 
         return params, tables
 
@@ -483,14 +499,18 @@ class TestStrategy():
 
 
 class TestPortfolio():
+    """
+    Run backtests over a portfolio of tickers
 
+    """
     def __init__(self, **kwargs):
 
         #self.system_dict = self.run_individual_tests(**kwargs)
         self.system_dict = self.run_individual_tests_with_data(**kwargs)
 
 
-    def run_individual_tests(self, portfolio, **kwargs):
+    @staticmethod
+    def run_individual_tests(portfolio, **kwargs):
         """
         Run backtests for each of the provided tickers.
 
@@ -546,7 +566,8 @@ class TestPortfolio():
         return system_dict
 
 
-    def run_individual_tests_with_data(self, portfolio, **kwargs):
+    @staticmethod
+    def run_individual_tests_with_data(portfolio, **kwargs):
         """
         Run backtests for each of the provided tickers.
 
@@ -620,7 +641,8 @@ class TestPortfolio():
         params = {}
         params['start_date'] = start_date
         params['end_date'] = end_date
-        system_dict['benchmark'] = Markets.return_norgate_data('$SPX', params)
+        system_dict['benchmark'] = NorgateFunctions.return_norgate_data(
+            '$SPX', params)
 
         return system_dict
 

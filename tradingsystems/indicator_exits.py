@@ -540,8 +540,8 @@ class IndicatorExit():
         # Calculate slow k  and slow d
         slow_k, slow_d = Indicators.stochastic(
             prices['High'], prices['Low'], prices['Close'],
-            fast_k_period=time_period, fast_d_period=3, slow_k_period=3,
-            slow_d_period=3, output_type='slow')
+            fast_k_period=time_period, slow_k_period=3, slow_d_period=3,
+            output_type='slow')
 
         # Create an empty array to store the signals
         stoch_cross_exit = np.array([0]*len(prices))
