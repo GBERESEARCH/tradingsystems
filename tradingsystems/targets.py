@@ -13,10 +13,10 @@ class TradeTargets():
     """
     @classmethod
     def exit_and_stop_targets(
-            cls, 
-            prices: pd.DataFrame, 
-            params: dict, 
-            trade_price_dict: dict) -> pd.DataFrame:
+        cls, 
+        prices: pd.DataFrame, 
+        params: dict, 
+        trade_price_dict: dict) -> pd.DataFrame:
         """
         Calculate exit and stop targets.
 
@@ -59,11 +59,11 @@ class TradeTargets():
 
     @classmethod
     def _exit_targets(
-            cls, 
-            prices: pd.DataFrame, 
-            exit_amount: float, 
-            trade_price_dict: dict, 
-            params: dict) -> pd.DataFrame:
+        cls, 
+        prices: pd.DataFrame, 
+        exit_amount: float, 
+        trade_price_dict: dict, 
+        params: dict) -> pd.DataFrame:
         """
         Create 4 series of exit targets
 
