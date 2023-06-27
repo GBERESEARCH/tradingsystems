@@ -3,7 +3,9 @@ Graph the performance of the trading strategy
 
 """
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import axes
 from matplotlib.ticker import FormatStrFormatter
 # pylint: disable=unbalanced-tuple-unpacking
 # pylint: disable=no-else-return
@@ -16,7 +18,11 @@ class PerformanceGraph():
 
     @classmethod
     def two_panel_graph(
-            cls, signals=None, tables=None, params=None, es_dict=None):
+        cls, 
+        es_dict: dict,
+        params: dict,
+        tables: dict,
+        signals: bool | None = None) -> dict:
         """
         Create the 2 panel graph
 
@@ -70,7 +76,11 @@ class PerformanceGraph():
 
     @classmethod
     def three_panel_graph(
-            cls, signals=None, tables=None, params=None, es_dict=None):
+        cls,
+        es_dict: dict,
+        params: dict,
+        tables: dict,
+        signals: bool | None = None) -> dict:
         """
         Create the 3 panel graph
 
@@ -159,7 +169,9 @@ class PerformanceGraph():
 
     @staticmethod
     def _graph_variables(
-            prices=None, entry_type=None, entry_signal_indicators=None):
+        prices: pd.DataFrame,
+        entry_type: str,
+        entry_signal_indicators: dict | None = None) -> dict:
         """
         Create graph initialization variables
 
@@ -229,7 +241,11 @@ class PerformanceGraph():
 
     @classmethod
     def _two_panel_setup(
-            cls, prices=None, graph_params=None, params=None, es_dict=None):
+        cls,
+        prices: pd.DataFrame,
+        graph_params: dict,
+        params: dict,
+        es_dict: dict) -> tuple[axes.Axes,axes.Axes]:
         """
         Set up the 2 panel chart
 
@@ -370,7 +386,13 @@ class PerformanceGraph():
 
     @classmethod
     def _three_panel_setup(
-            cls, prices=None, graph_params=None, params=None, es_dict=None):
+        cls, 
+        prices: pd.DataFrame,
+        graph_params: dict,
+        params: dict,
+        es_dict: dict) -> tuple[
+            axes.Axes, axes.Axes, axes.Axes, axes.Axes] | tuple[
+                axes.Axes, axes.Axes, axes.Axes]:
         """
         Set up the 3 panel chart
 
@@ -378,7 +400,7 @@ class PerformanceGraph():
         ----------
         dates : Pandas Series
             The dates to plot on the x-axis.
-        price : Pandas Series
+        prices : Pandas Series
             Closing Prices.
         equity : Pandas Series
             Daily Mark to Market Equity level.
@@ -541,7 +563,10 @@ class PerformanceGraph():
 
 
     @staticmethod
-    def _bar_color(price_data, color1, color2):
+    def _bar_color(
+        price_data: pd.Series, 
+        color1: str, 
+        color2: str) -> np.ndarray:
         """
         Set barchart color to green if positive and red if negative.
 
@@ -564,7 +589,11 @@ class PerformanceGraph():
 
 
     @classmethod
-    def _axis_scale(cls, ax1, graph_params, params):
+    def _axis_scale(
+        cls,
+        ax1: axes.Axes,
+        graph_params: dict,
+        params: dict) -> axes.Axes:
 
         # Set y-axis to 2 decimal places for FX pairs
         if params['asset_type'] == 'fx':
@@ -586,7 +615,9 @@ class PerformanceGraph():
 
     @classmethod
     def _create_signals(
-            cls, prices=None, graph_params=None):
+        cls,
+        prices: pd.DataFrame,
+        graph_params: dict) -> dict:
         """
         Create trade signals to be plotted on main price chart
 
@@ -695,7 +726,8 @@ class PerformanceGraph():
 
 
     @staticmethod
-    def _set_upper_lower(graph_params):
+    def _set_upper_lower(
+        graph_params: dict) -> tuple[float, float]:
         # Set upper to the max of the upper bound and lower to the lowest
         # non-zero value of the lower bound, stripping zeros and nan values
 
@@ -708,7 +740,9 @@ class PerformanceGraph():
 
 
     @staticmethod
-    def _plot_signals(axis=None, signal_dict=None):
+    def _plot_signals(
+        axis: axes.Axes,
+        signal_dict: dict) -> axes.Axes:
         """
         Plot trade signals on price-time chart
 
@@ -762,7 +796,10 @@ class PerformanceGraph():
 
     @staticmethod
     def _indicator_format(
-            axis=None, indicator=None, dates=None,  params=None):
+        axis: axes.Axes,
+        params: dict,
+        indicator: pd.Series | None = None,
+        dates: pd.Series | None = None) -> axes.Axes:
         """
         Apply Overbought / Oversold formatting to the indicator chart
 
@@ -783,7 +820,8 @@ class PerformanceGraph():
         """
 
         # For all the indicators other than momentum, volatility, adx and macd
-        if params['entry_type'] not in ['momentum', 'volatility', 'adx', 'macd']:
+        if params['entry_type'] not in [
+            'momentum', 'volatility', 'adx', 'macd']:
 
             # Plot horizontal overbought and oversold lines
             axis.axhline(
@@ -828,7 +866,10 @@ class PerformanceGraph():
 
 
     @staticmethod
-    def _two_panel_legend(ax1, ax2, perf_dict):
+    def _two_panel_legend(
+        ax1: axes.Axes, 
+        ax2: axes.Axes, 
+        perf_dict: dict) -> tuple[axes.Axes, axes.Axes]:
         """
         Create the legend, axis labels and titles for the 2 panel graph
 
@@ -861,7 +902,12 @@ class PerformanceGraph():
 
     @staticmethod
     def _three_panel_legend(
-            axes, perf_dict, entry_signal_labels, params):
+            axes: dict,
+            perf_dict: dict,
+            entry_signal_labels: dict,
+            params: dict) -> tuple[
+                axes.Axes, axes.Axes, axes.Axes, axes.Axes] | tuple[
+                    axes.Axes, axes.Axes, axes.Axes]:
         """
         Create the legend, axis labels and titles for the 3 panel graph
 
