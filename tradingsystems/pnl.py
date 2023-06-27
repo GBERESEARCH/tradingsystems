@@ -16,8 +16,8 @@ class Profit():
 
     @classmethod
     def profit_data(
-        cls, 
-        prices: pd.DataFrame, 
+        cls,
+        prices: pd.DataFrame,
         params: dict) -> pd.DataFrame:
         """
         Adds profit fields to the OHLC data
@@ -64,7 +64,7 @@ class Profit():
     @classmethod
     def _pnl_mtm(
         cls,
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> pd.DataFrame:
         """
         Calculate pnl and mark to market columns
@@ -104,7 +104,7 @@ class Profit():
 
     @staticmethod
     def _daily_pnl(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> pd.DataFrame:
         """
         Calculate daily PNL
@@ -825,7 +825,7 @@ class Profit():
 
     @staticmethod
     def _initialise_monthly_data(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         equity: int) -> pd.DataFrame:
         # Create empty DataFrame
         monthly_data = pd.DataFrame()
@@ -872,6 +872,5 @@ class Profit():
         monthly_data['return_raw'].iloc[0] = (
             (monthly_data['total_net_profit'].iloc[0])
             / (monthly_data['beginning_equity_raw'].iloc[0]))
-        
+
         return monthly_data
-    

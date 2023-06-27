@@ -18,7 +18,7 @@ class PerformanceGraph():
 
     @classmethod
     def two_panel_graph(
-        cls, 
+        cls,
         es_dict: dict,
         params: dict,
         tables: dict,
@@ -146,15 +146,15 @@ class PerformanceGraph():
 
             # Add legend, labels and titles to the graphs
             if params['entry_type'] == 'macd':
-                axes = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3, 'axt':axt}
+                axes_dict = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3, 'axt':axt}
                 ax1, ax2, ax3, axt = cls._three_panel_legend(
-                    axes=axes, perf_dict=tables['perf_dict'],
+                    axes_dict=axes_dict, perf_dict=tables['perf_dict'],
                     params=params,
                     entry_signal_labels=es_dict['entry_signal_labels'])
             else:
-                axes = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3}
+                axes_dict = {'ax1':ax1, 'ax2':ax2, 'ax3':ax3}
                 ax1, ax2, ax3 = cls._three_panel_legend(
-                    axes=axes, perf_dict=tables['perf_dict'],
+                    axes_dict=axes_dict, perf_dict=tables['perf_dict'],
                     params=params,
                     entry_signal_labels=es_dict['entry_signal_labels'])
 
@@ -386,7 +386,7 @@ class PerformanceGraph():
 
     @classmethod
     def _three_panel_setup(
-        cls, 
+        cls,
         prices: pd.DataFrame,
         graph_params: dict,
         params: dict,
@@ -564,8 +564,8 @@ class PerformanceGraph():
 
     @staticmethod
     def _bar_color(
-        price_data: pd.Series, 
-        color1: str, 
+        price_data: pd.Series,
+        color1: str,
         color2: str) -> np.ndarray:
         """
         Set barchart color to green if positive and red if negative.
@@ -867,8 +867,8 @@ class PerformanceGraph():
 
     @staticmethod
     def _two_panel_legend(
-        ax1: axes.Axes, 
-        ax2: axes.Axes, 
+        ax1: axes.Axes,
+        ax2: axes.Axes,
         perf_dict: dict) -> tuple[axes.Axes, axes.Axes]:
         """
         Create the legend, axis labels and titles for the 2 panel graph
@@ -902,12 +902,12 @@ class PerformanceGraph():
 
     @staticmethod
     def _three_panel_legend(
-            axes: dict,
-            perf_dict: dict,
-            entry_signal_labels: dict,
-            params: dict) -> tuple[
-                axes.Axes, axes.Axes, axes.Axes, axes.Axes] | tuple[
-                    axes.Axes, axes.Axes, axes.Axes]:
+        axes_dict: dict[str, axes.Axes],
+        perf_dict: dict,
+        entry_signal_labels: dict,
+        params: dict) -> tuple[
+            axes.Axes, axes.Axes, axes.Axes, axes.Axes] | tuple[
+                axes.Axes, axes.Axes, axes.Axes]:
         """
         Create the legend, axis labels and titles for the 3 panel graph
 
@@ -930,9 +930,9 @@ class PerformanceGraph():
             The MTM Equity chart.
 
         """
-        ax1 = axes['ax1']
-        ax2 = axes['ax2']
-        ax3 = axes['ax3']
+        ax1 = axes_dict['ax1']
+        ax2 = axes_dict['ax2']
+        ax3 = axes_dict['ax3']
 
         # Title of main price chart is the contract longname plus the entry
         # strategy
@@ -951,7 +951,7 @@ class PerformanceGraph():
         ax1.legend()
 
         if params['entry_type'] == 'macd':
-            axt = axes['axt']
+            axt = axes_dict['axt']
             ax2.set_ylabel('MACD - Signal')
             axt.set_ylabel('Histogram')
             ax2.set_title(entry_signal_labels[params['entry_type']])

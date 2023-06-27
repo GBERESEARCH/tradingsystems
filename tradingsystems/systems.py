@@ -132,6 +132,10 @@ class TestStrategy():
         # Import dictionary of default parameters
         self.default_dict = copy.deepcopy(system_params_dict)
 
+        self.params = {}
+        self.tables = {}
+        self.labels = {}
+
         # Longnames for Norgate Tickers
         self.norgate_name_dict = {}
 
@@ -346,9 +350,9 @@ class TestStrategy():
 
     @classmethod
     def prepare_data(
-        cls, 
-        params: dict, 
-        tables: dict, 
+        cls,
+        params: dict,
+        tables: dict,
         market_data: pd.DataFrame | None = None) -> tuple[dict, dict]:
         """
         Get market data ready to be analysed
@@ -383,7 +387,7 @@ class TestStrategy():
 
     @staticmethod
     def _prepare_dates(
-        params: dict, 
+        params: dict,
         market_data: pd.DataFrame | None = None) -> dict:
 
         if market_data is None:
@@ -401,8 +405,8 @@ class TestStrategy():
 
     @staticmethod
     def _prepare_ticker_data(
-        params: dict, 
-        tables: dict, 
+        params: dict,
+        tables: dict,
         market_data: pd.DataFrame | None = None) -> tuple[dict, dict]:
 
         if params['input_data'] == 'reset':
@@ -430,7 +434,7 @@ class TestStrategy():
 
     @staticmethod
     def _prepare_benchmark_data(
-        params: dict, 
+        params: dict,
         tables: dict) -> tuple[dict, dict]:
 
         # Extract benchmark data for Beta calculation
@@ -662,9 +666,9 @@ class TestPortfolio():
 
     @staticmethod
     def prep_portfolio_list(
-        top_ticker_list: list, 
-        portfolio: dict, 
-        asset_class: str, 
+        top_ticker_list: list,
+        portfolio: dict,
+        asset_class: str,
         num_tickers: int) -> dict:
         """
         Prepare portfolio of tickers from top trend data
@@ -672,7 +676,8 @@ class TestPortfolio():
         Parameters
         ----------
         top_ticker list : list
-            List of top trending tickers obtained from TrendStrength object: top_trends['top_ticker_list']
+            List of top trending tickers obtained from TrendStrength
+            object: top_trends['top_ticker_list']
         portfolio : Dict
             Dictionary to contain asset classes and ticker lists.
         asset_class : Str
@@ -695,9 +700,9 @@ class TestPortfolio():
 
     @staticmethod
     def prep_portfolio_dict(
-        top_ticker_dict: dict, 
-        portfolio: dict, 
-        asset_class: str, 
+        top_ticker_dict: dict,
+        portfolio: dict,
+        asset_class: str,
         num_tickers: int) -> dict:
         """
         Prepare portfolio of tickers from top trend data
@@ -705,7 +710,8 @@ class TestPortfolio():
         Parameters
         ----------
         top_ticker_dict : dict
-            Dictionary of top trending tickers obtained from TrendStrength object: top_trends['top_ticker_dict']
+            Dictionary of top trending tickers obtained from TrendStrength
+            object: top_trends['top_ticker_dict']
         portfolio : Dict
             Dictionary to contain asset classes and ticker lists.
         asset_class : Str

@@ -11,7 +11,7 @@ import pandas as pd
 from scipy.stats import skew, kurtosis
 from tradingsystems.pnl import Profit
 from tradingsystems.winloss import Runs
-
+# pylint: disable=C0209
 
 class PerfReport():
     """
@@ -271,10 +271,10 @@ class PerfReport():
 
     @staticmethod
     def _perf_data_init(
-        perf_dict: dict, 
-        prices: pd.DataFrame, 
-        params: dict, 
-        labels: dict, 
+        perf_dict: dict,
+        prices: pd.DataFrame,
+        params: dict,
+        labels: dict,
         norgate_name_dict: dict) -> dict:
 
         # Contract and strategy details
@@ -312,7 +312,7 @@ class PerfReport():
 
     @staticmethod
     def _perf_data_trades(
-        perf_dict: dict, 
+        perf_dict: dict,
         tables: dict) -> dict:
 
         prices = tables['prices']
@@ -668,8 +668,8 @@ class PerfReport():
 
     @staticmethod
     def _report_trades(
-        input_dict: dict, 
-        win_run_dict: dict, 
+        input_dict: dict,
+        win_run_dict: dict,
         loss_run_dict: dict) -> None:
 
         # Headers for # trades, Max, Min and Average with lines above and below

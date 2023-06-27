@@ -14,7 +14,7 @@ class MovingAverageEntry():
     """
     @staticmethod
     def entry_double_ma_crossover(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signal for Double Moving Average Crossover strategy
@@ -111,7 +111,7 @@ class MovingAverageEntry():
 
     @staticmethod
     def entry_triple_ma_crossover(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signal for Triple Moving Average Crossover strategy
@@ -221,7 +221,7 @@ class MovingAverageEntry():
 
     @staticmethod
     def entry_quad_ma_crossover(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
 
         """

@@ -59,9 +59,9 @@ class Runs():
         # Split winning and losing trades
         # Create empty win/loss dictionaries and lists
         trades_win_dict = {}
-        trades_win_list = list()
+        trades_win_list = []
         trades_loss_dict = {}
-        trades_loss_list = list()
+        trades_loss_list = []
 
         # for each trade and profit in the trades dictionary
         for key, value in trades.items():
@@ -246,7 +246,7 @@ class Runs():
 
     @staticmethod
     def _calc_min_max_runs(
-        pnl: list[tuple[int, int]], 
+        pnl: list[tuple[int, int]],
         run_type: str) -> dict[str, int]:
 
         # Values to select for winning runs

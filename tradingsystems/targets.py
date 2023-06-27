@@ -13,9 +13,9 @@ class TradeTargets():
     """
     @classmethod
     def exit_and_stop_targets(
-        cls, 
-        prices: pd.DataFrame, 
-        params: dict, 
+        cls,
+        prices: pd.DataFrame,
+        params: dict,
         trade_price_dict: dict) -> pd.DataFrame:
         """
         Calculate exit and stop targets.
@@ -59,10 +59,10 @@ class TradeTargets():
 
     @classmethod
     def _exit_targets(
-        cls, 
-        prices: pd.DataFrame, 
-        exit_amount: float, 
-        trade_price_dict: dict, 
+        cls,
+        prices: pd.DataFrame,
+        exit_amount: float,
+        trade_price_dict: dict,
         params: dict) -> pd.DataFrame:
         """
         Create 4 series of exit targets
@@ -98,9 +98,9 @@ class TradeTargets():
     @classmethod
     def _stop_targets(
         cls,
-        prices: pd.DataFrame, 
-        stop_amount: float, 
-        trade_price_dict: dict, 
+        prices: pd.DataFrame,
+        stop_amount: float,
+        trade_price_dict: dict,
         params: dict) -> pd.DataFrame:
         """
         Create 4 series of stop targets
@@ -135,9 +135,9 @@ class TradeTargets():
 
     @staticmethod
     def _pnl_targets(
-        prices: pd.DataFrame, 
-        dollar_amount: float, 
-        trade_price_dict: dict, 
+        prices: pd.DataFrame,
+        dollar_amount: float,
+        trade_price_dict: dict,
         params: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Create profit and loss stop and exit points

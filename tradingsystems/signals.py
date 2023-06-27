@@ -20,8 +20,8 @@ class Signals():
 
     @classmethod
     def raw_entry_signals(
-        cls, 
-        tables: dict, 
+        cls,
+        tables: dict,
         params: dict) -> tuple[dict, dict, dict]:
         """
         Generate the initial raw entry signals, positions and trades
@@ -119,8 +119,8 @@ class Signals():
 
     @classmethod
     def entry_signal(
-        cls, 
-        tables: dict, 
+        cls,
+        tables: dict,
         params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Calculate trade entry signals
@@ -281,8 +281,8 @@ class Signals():
 
     @classmethod
     def exit_and_stop_signals(
-        cls, 
-        prices: pd.DataFrame, 
+        cls,
+        prices: pd.DataFrame,
         params: dict) -> pd.DataFrame:
         """
         Calculate trade exit and stop signals.
@@ -356,8 +356,8 @@ class Signals():
 
     @classmethod
     def _exit_signal(
-        cls, 
-        prices: pd.DataFrame, 
+        cls,
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate trade exit signals.
@@ -472,8 +472,8 @@ class Signals():
 
     @classmethod
     def _stop_signal(
-        cls, 
-        prices: pd.DataFrame, 
+        cls,
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate trade stop signals

@@ -18,8 +18,8 @@ class Positions():
     """
     @staticmethod
     def calc_positions(
-        prices: pd.DataFrame, 
-        signal: pd.Series, 
+        prices: pd.DataFrame,
+        signal: pd.Series,
         start: int) -> dict:
         """
         Calculate start of day and end of day positions and any buy / sell
@@ -346,7 +346,7 @@ class Positions():
 
     @staticmethod
     def _equity_constant_position_size(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Extract the raw trade signal from the OHLC data
@@ -391,7 +391,7 @@ class Positions():
 
     @staticmethod
     def _equity_variable_position_size(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Extract the raw trade signal from the OHLC data
@@ -440,7 +440,7 @@ class Positions():
 
     @staticmethod
     def _atr_position_size(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Calculate ATR levels
@@ -528,7 +528,7 @@ class Positions():
 
     @staticmethod
     def _fixed_position_size(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Extract the raw trade signal from the OHLC data

@@ -16,9 +16,9 @@ class IndicatorExit():
 
     @staticmethod
     def exit_parabolic_sar(
-        prices: pd.DataFrame, 
-        time_period: int, 
-        acceleration_factor: float, 
+        prices: pd.DataFrame,
+        time_period: int,
+        acceleration_factor: float,
         sip_price: bool) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a Parabolic SAR.
@@ -281,9 +281,9 @@ class IndicatorExit():
 
     @staticmethod
     def exit_rsi_trail(
-        prices: pd.DataFrame, 
-        time_period: int, 
-        oversold: int, 
+        prices: pd.DataFrame,
+        time_period: int,
+        oversold: int,
         overbought: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a trailing RSI - a down close when the RSI is
@@ -362,7 +362,7 @@ class IndicatorExit():
 
     @staticmethod
     def exit_key_reversal(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a key reversal day - a new high combined with
@@ -442,8 +442,8 @@ class IndicatorExit():
 
     @staticmethod
     def exit_volatility(
-        prices: pd.DataFrame, 
-        time_period: int, 
+        prices: pd.DataFrame,
+        time_period: int,
         threshold: float) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an increase in volatility - a fall in price
@@ -522,7 +522,7 @@ class IndicatorExit():
 
     @staticmethod
     def exit_stochastic_crossover(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a stochastic crossover - if the slow k crosses
@@ -676,7 +676,7 @@ class IndicatorExit():
 
     @staticmethod
     def exit_support_resistance(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an n-day high / low.
@@ -756,7 +756,7 @@ class IndicatorExit():
 
     @staticmethod
     def exit_immediate_profit(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an immediate n-day profit.
@@ -829,7 +829,7 @@ class IndicatorExit():
 
     @staticmethod
     def exit_nday_range(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an n-day range.

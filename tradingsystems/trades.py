@@ -13,8 +13,8 @@ class Trades():
     """
     @staticmethod
     def trade_numbers(
-        prices: pd.DataFrame, 
-        end_of_day_position: pd.Series[int], 
+        prices: pd.DataFrame,
+        end_of_day_position: pd.Series,
         start: int) -> np.ndarray:
         """
         Calculate the trade numbers
@@ -81,7 +81,7 @@ class Trades():
 
     @staticmethod
     def trade_prices(
-        prices: pd.DataFrame, 
+        prices: pd.DataFrame,
         trade_number: pd.Series) -> dict:
         """
         Calculate per trade entry, exit, high and low prices.
@@ -183,9 +183,9 @@ class Trades():
 
     @staticmethod
     def signal_combine(
-        prices: pd.DataFrame, 
-        start: int, 
-        end_of_day_position: pd.Series, 
+        prices: pd.DataFrame,
+        start: int,
+        end_of_day_position: pd.Series,
         trade_signals: pd.DataFrame) -> np.ndarray:
         """
         Combine Entry, Exit and Stop signals into a single composite signal.

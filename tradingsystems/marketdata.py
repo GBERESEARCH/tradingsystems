@@ -16,9 +16,9 @@ class Markets():
     """
     @classmethod
     def create_base_data(
-        cls, 
-        ticker: str | None = None, 
-        source: str | None = None, 
+        cls,
+        ticker: str | None = None,
+        source: str | None = None,
         params: dict | None = None) -> tuple[pd.DataFrame, dict]:
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
@@ -74,7 +74,7 @@ class Markets():
 
 
     @classmethod
-    def reset_data(cls, 
+    def reset_data(cls,
         tables: dict,
         params: dict) -> tuple[dict, dict]:
         """
@@ -113,7 +113,7 @@ class Markets():
 
     @staticmethod
     def return_yahoo_data(
-        ticker: str, 
+        ticker: str,
         params: dict) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for specified ticker using Yahoo
@@ -167,8 +167,8 @@ class Markets():
 
     @classmethod
     def return_alphavantage_data(
-        cls, 
-        params: dict, 
+        cls,
+        params: dict,
         ticker: str | None = None) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for specified ticker using
@@ -263,8 +263,8 @@ class Markets():
 
     @staticmethod
     def _alphavantage_fx(
-        ccy_1: str, 
-        ccy_2: str, 
+        ccy_1: str,
+        ccy_2: str,
         api_key: str) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for an fx pair using
@@ -297,7 +297,7 @@ class Markets():
                   'outputsize':'full',
                   'apikey': api_key}
 
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=10)
         response_dict = response.json()
 
         _, header = response.json()
@@ -318,8 +318,8 @@ class Markets():
 
     @staticmethod
     def _alphavantage_crypto(
-        ccy_1: str, 
-        ccy_2: str, 
+        ccy_1: str,
+        ccy_2: str,
         api_key: str) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for a cryptocurrency pair using
@@ -350,7 +350,7 @@ class Markets():
                   'market': ccy_2,
                   'apikey': api_key}
 
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=10)
         response_dict = response.json()
 
         _, header = response.json()
@@ -375,7 +375,7 @@ class Markets():
 
     @staticmethod
     def _alphavantage_equity(
-        ticker: str, 
+        ticker: str,
         api_key: str) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for an equity ticker using
@@ -404,7 +404,7 @@ class Markets():
                   'outputsize':'full',
                   'apikey': api_key}
 
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=10)
         response_dict = response.json()
 
         _, header = response.json()
@@ -452,7 +452,7 @@ class NorgateFunctions():
 
     @staticmethod
     def return_norgate_data(
-        ticker: str, 
+        ticker: str,
         params: dict) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for specified ticker using Norgate
@@ -487,8 +487,8 @@ class NorgateFunctions():
 
     @staticmethod
     def contract_data(
-        ticker: str, 
-        prices: pd.DataFrame, 
+        ticker: str,
+        prices: pd.DataFrame,
         params: dict) -> dict:
         """
         Specifies per-contract-margin and contract-point-value data
