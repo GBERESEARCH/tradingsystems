@@ -4,6 +4,7 @@ Moving Average trading signals
 """
 
 import numpy as np
+import pandas as pd
 from technicalmethods.methods import Indicators
 
 class MovingAverageEntry():
@@ -12,7 +13,9 @@ class MovingAverageEntry():
 
     """
     @staticmethod
-    def entry_double_ma_crossover(prices, params):
+    def entry_double_ma_crossover(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signal for Double Moving Average Crossover strategy
 
@@ -107,7 +110,9 @@ class MovingAverageEntry():
 
 
     @staticmethod
-    def entry_triple_ma_crossover(prices, params):
+    def entry_triple_ma_crossover(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signal for Triple Moving Average Crossover strategy
 
@@ -215,7 +220,9 @@ class MovingAverageEntry():
 
 
     @staticmethod
-    def entry_quad_ma_crossover(prices, params):
+    def entry_quad_ma_crossover(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, int, np.ndarray]:
 
         """
         Entry signals for Quad Moving Average strategy
