@@ -730,8 +730,9 @@ class Profit():
         return gain_length
 
 
-    @staticmethod
+    @classmethod
     def create_monthly_data(
+        cls,
         prices: pd.DataFrame,
         equity: int) -> pd.DataFrame:
         """
@@ -750,51 +751,9 @@ class Profit():
             The monthly summary data.
 
         """
-        # Create empty DataFrame
-        monthly_data = pd.DataFrame()
-
-        # Summarize daily pnl data by resampling to monthly
-        monthly_data['total_net_profit'] = prices[
-            'daily_pnl'].resample('1M').sum()
-        monthly_data['average_net_profit'] = prices[
-            'daily_pnl'].resample('1M').mean()
-        monthly_data['max_net_profit'] = prices[
-            'daily_pnl'].resample('1M').max()
-        monthly_data['min_net_profit'] = prices[
-            'daily_pnl'].resample('1M').min()
-
-        # Create arrays of zeros to hold data
-        monthly_data['beginning_equity'] = np.array([0.0]*len(monthly_data))
-        monthly_data['additions'] = np.array([0.0]*len(monthly_data))
-        monthly_data['withdrawals'] = np.array([0.0]*len(monthly_data))
-        monthly_data['end_equity'] = np.array([0.0]*len(monthly_data))
-        monthly_data['return'] = np.array([0.0]*len(monthly_data))
-        monthly_data['beginning_equity_raw'] = np.array(
-            [0.0]*len(monthly_data))
-        monthly_data['end_equity_raw'] = np.array([0.0]*len(monthly_data))
-        monthly_data['return_raw'] = np.array([0.0]*len(monthly_data))
-        monthly_data['abs_loss'] = np.array([0.0]*len(monthly_data))
-        monthly_data['abs_loss_raw'] = np.array([0.0]*len(monthly_data))
-
-        # Set initial values
-        monthly_data['additions'].iloc[0] = equity
-        monthly_data['end_equity'].iloc[0] = (
-            monthly_data['beginning_equity'].iloc[0]
-            + monthly_data['additions'].iloc[0]
-            + monthly_data['withdrawals'].iloc[0]
-            + monthly_data['total_net_profit'].iloc[0])
-        monthly_data['return'].iloc[0] = (
-            (monthly_data['total_net_profit'].iloc[0])
-            / (monthly_data['beginning_equity'].iloc[0]
-               + monthly_data['additions'].iloc[0]
-               + monthly_data['withdrawals'].iloc[0]))
-        monthly_data['beginning_equity_raw'].iloc[0] = equity
-        monthly_data['end_equity_raw'].iloc[0] = (
-            monthly_data['beginning_equity_raw'].iloc[0]
-            + monthly_data['total_net_profit'].iloc[0])
-        monthly_data['return_raw'].iloc[0] = (
-            (monthly_data['total_net_profit'].iloc[0])
-            / (monthly_data['beginning_equity_raw'].iloc[0]))
+        # Set up monthly data DataFrame
+        monthly_data = cls._initialise_monthly_data(
+            prices=prices, equity=equity)
 
         # For each month
         for row in range(1, len(monthly_data)):
@@ -862,3 +821,57 @@ class Profit():
                     'return_raw'][row]
 
         return monthly_data
+
+
+    @staticmethod
+    def _initialise_monthly_data(
+        prices: pd.DataFrame, 
+        equity: int) -> pd.DataFrame:
+        # Create empty DataFrame
+        monthly_data = pd.DataFrame()
+
+        # Summarize daily pnl data by resampling to monthly
+        monthly_data['total_net_profit'] = prices[
+            'daily_pnl'].resample('1M').sum()
+        monthly_data['average_net_profit'] = prices[
+            'daily_pnl'].resample('1M').mean()
+        monthly_data['max_net_profit'] = prices[
+            'daily_pnl'].resample('1M').max()
+        monthly_data['min_net_profit'] = prices[
+            'daily_pnl'].resample('1M').min()
+
+        # Create arrays of zeros to hold data
+        monthly_data['beginning_equity'] = np.array([0.0]*len(monthly_data))
+        monthly_data['additions'] = np.array([0.0]*len(monthly_data))
+        monthly_data['withdrawals'] = np.array([0.0]*len(monthly_data))
+        monthly_data['end_equity'] = np.array([0.0]*len(monthly_data))
+        monthly_data['return'] = np.array([0.0]*len(monthly_data))
+        monthly_data['beginning_equity_raw'] = np.array(
+            [0.0]*len(monthly_data))
+        monthly_data['end_equity_raw'] = np.array([0.0]*len(monthly_data))
+        monthly_data['return_raw'] = np.array([0.0]*len(monthly_data))
+        monthly_data['abs_loss'] = np.array([0.0]*len(monthly_data))
+        monthly_data['abs_loss_raw'] = np.array([0.0]*len(monthly_data))
+
+        # Set initial values
+        monthly_data['additions'].iloc[0] = equity
+        monthly_data['end_equity'].iloc[0] = (
+            monthly_data['beginning_equity'].iloc[0]
+            + monthly_data['additions'].iloc[0]
+            + monthly_data['withdrawals'].iloc[0]
+            + monthly_data['total_net_profit'].iloc[0])
+        monthly_data['return'].iloc[0] = (
+            (monthly_data['total_net_profit'].iloc[0])
+            / (monthly_data['beginning_equity'].iloc[0]
+               + monthly_data['additions'].iloc[0]
+               + monthly_data['withdrawals'].iloc[0]))
+        monthly_data['beginning_equity_raw'].iloc[0] = equity
+        monthly_data['end_equity_raw'].iloc[0] = (
+            monthly_data['beginning_equity_raw'].iloc[0]
+            + monthly_data['total_net_profit'].iloc[0])
+        monthly_data['return_raw'].iloc[0] = (
+            (monthly_data['total_net_profit'].iloc[0])
+            / (monthly_data['beginning_equity_raw'].iloc[0]))
+        
+        return monthly_data
+    
