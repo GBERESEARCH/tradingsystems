@@ -183,10 +183,10 @@ class Trades():
 
     @staticmethod
     def signal_combine(
-            prices: pd.DataFrame, 
-            start: int, 
-            end_of_day_position: pd.Series, 
-            trade_signals: pd.DataFrame) -> np.ndarray:
+        prices: pd.DataFrame, 
+        start: int, 
+        end_of_day_position: pd.Series, 
+        trade_signals: pd.DataFrame) -> np.ndarray:
         """
         Combine Entry, Exit and Stop signals into a single composite signal.
 
