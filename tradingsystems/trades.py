@@ -3,6 +3,7 @@ Calculate trades data
 
 """
 
+import pandas as pd
 import numpy as np
 
 class Trades():
@@ -11,7 +12,10 @@ class Trades():
 
     """
     @staticmethod
-    def trade_numbers(prices, end_of_day_position, start):
+    def trade_numbers(
+        prices: pd.DataFrame, 
+        end_of_day_position: pd.Series[int], 
+        start: int) -> np.ndarray:
         """
         Calculate the trade numbers
 
@@ -31,7 +35,7 @@ class Trades():
 
         """
         # Extract the end of day position from the OHLC Data
-        end_of_day_position = np.array(end_of_day_position)
+        eod_pos_np = np.array(end_of_day_position)
 
         # Create numpy array of zeros to store trade numbers
         trade_number = np.array([0]*len(prices))
@@ -43,10 +47,10 @@ class Trades():
         for row in range(start + 1, len(prices)):
 
             # If today's position is zero
-            if end_of_day_position[row] == 0:
+            if eod_pos_np[row] == 0:
 
                 # If yesterday's position is zero
-                if end_of_day_position[row - 1] == 0:
+                if eod_pos_np[row - 1] == 0:
 
                     # There is no open trade so set trade number to zero
                     trade_number[row] = 0
@@ -58,7 +62,7 @@ class Trades():
                     trade_number[row] = trade_count
 
             # If today's position is the same as yesterday
-            elif end_of_day_position[row] == end_of_day_position[row - 1]:
+            elif eod_pos_np[row] == eod_pos_np[row - 1]:
 
                 # Set the trade number to yesterdays trade number
                 trade_number[row] = trade_number[row - 1]
@@ -76,7 +80,9 @@ class Trades():
 
 
     @staticmethod
-    def trade_prices(prices, trade_number):
+    def trade_prices(
+        prices: pd.DataFrame, 
+        trade_number: pd.Series) -> dict:
         """
         Calculate per trade entry, exit, high and low prices.
 
@@ -177,7 +183,10 @@ class Trades():
 
     @staticmethod
     def signal_combine(
-            prices, start, end_of_day_position, trade_signals):
+            prices: pd.DataFrame, 
+            start: int, 
+            end_of_day_position: pd.Series, 
+            trade_signals: pd.DataFrame) -> np.ndarray:
         """
         Combine Entry, Exit and Stop signals into a single composite signal.
 
