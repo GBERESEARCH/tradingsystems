@@ -13,7 +13,7 @@ class Runs():
     """
 
     @staticmethod
-    def trade_data(prices):
+    def trade_data(prices: pd.DataFrame) -> dict:
         """
         Create dictionary of trades, count of the number of trades and lists /
         dictionaries of winning and losing trades
@@ -93,7 +93,10 @@ class Runs():
 
 
     @classmethod
-    def trade_runs(cls, input_trades_list, run_type):
+    def trade_runs(
+        cls,
+        input_trades_list: list,
+        run_type: str) -> dict:
         """
         Produce data for winning or losing runs of trades
 
@@ -163,7 +166,7 @@ class Runs():
         return run_dict
 
     @staticmethod
-    def _calc_trade_runs(input_trades_list):
+    def _calc_trade_runs(input_trades_list: list) -> list[tuple[int, int]]:
 
         # Set initial values
         max_run_count = 1
@@ -242,7 +245,9 @@ class Runs():
 
 
     @staticmethod
-    def _calc_min_max_runs(pnl, run_type):
+    def _calc_min_max_runs(
+        pnl: list[tuple[int, int]], 
+        run_type: str) -> dict[str, int]:
 
         # Values to select for winning runs
         if run_type == 'win':
@@ -289,7 +294,7 @@ class Runs():
 
 
     @staticmethod
-    def _calc_run_names(run_type):
+    def _calc_run_names(run_type: str) -> dict:
 
         max_run_pnl_str = 'max_'+run_type+'_run_pnl'
         max_run_count_str = 'max_'+run_type+'_run_count'
