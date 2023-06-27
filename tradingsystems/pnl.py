@@ -15,7 +15,10 @@ class Profit():
     """
 
     @classmethod
-    def profit_data(cls, prices, params):
+    def profit_data(
+        cls, 
+        prices: pd.DataFrame, 
+        params: dict) -> pd.DataFrame:
         """
         Adds profit fields to the OHLC data
 
@@ -59,7 +62,10 @@ class Profit():
 
 
     @classmethod
-    def _pnl_mtm(cls, prices, params):
+    def _pnl_mtm(
+        cls,
+        prices: pd.DataFrame, 
+        params: dict) -> pd.DataFrame:
         """
         Calculate pnl and mark to market columns
 
@@ -97,7 +103,9 @@ class Profit():
 
 
     @staticmethod
-    def _daily_pnl(prices, params):
+    def _daily_pnl(
+        prices: pd.DataFrame, 
+        params: dict) -> pd.DataFrame:
         """
         Calculate daily PNL
 
@@ -210,7 +218,10 @@ class Profit():
 
 
     @classmethod
-    def _cumulative_trade_pnl_and_equity(cls, prices, equity):
+    def _cumulative_trade_pnl_and_equity(
+        cls,
+        prices: pd.DataFrame,
+        equity: float) -> pd.DataFrame:
         """
         Calculate cumulative per trade pnl and various account equity series
 
@@ -240,7 +251,9 @@ class Profit():
 
 
     @staticmethod
-    def _pnl_equity(prices, equity):
+    def _pnl_equity(
+        prices: pd.DataFrame,
+        equity: float) -> pd.DataFrame:
         """
         Calculate cumulative per trade pnl and open, closed and mtm equity
         series
@@ -402,7 +415,9 @@ class Profit():
 
 
     @staticmethod
-    def _min_max_equity(prices, equity):
+    def _min_max_equity(
+        prices: pd.DataFrame,
+        equity: float) -> pd.DataFrame:
         """
         Calculate min and max mtm equity, closed equity, max retracement and
         ulcer index input series
@@ -470,7 +485,8 @@ class Profit():
 
 
     @staticmethod
-    def _max_dd_gain(prices):
+    def _max_dd_gain(
+        prices: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate max drawdown and max equity gain
 
@@ -525,7 +541,8 @@ class Profit():
 
 
     @staticmethod
-    def _trade_drawback(prices):
+    def _trade_drawback(
+        prices: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate max trade pnl drawback
 
@@ -571,7 +588,9 @@ class Profit():
 
 
     @staticmethod
-    def _perfect_profit(prices, params):
+    def _perfect_profit(
+        prices: pd.DataFrame,
+        params: dict) -> pd.DataFrame:
         """
         Theoretical optimal of buying every low and selling every high
 
@@ -621,7 +640,9 @@ class Profit():
 
 
     @staticmethod
-    def _margin_calc(prices, params):
+    def _margin_calc(
+        prices: pd.DataFrame,
+        params: dict) -> pd.DataFrame:
 
         prices['total_margin'] = np.array([0.0]*len(prices))
 
@@ -642,7 +663,8 @@ class Profit():
 
 
     @staticmethod
-    def time_to_recover(prices):
+    def time_to_recover(
+        prices: pd.DataFrame) -> int | str:
         """
         Calculate the time taken for largest loss from peak to trough
 
@@ -677,7 +699,7 @@ class Profit():
 
 
     @staticmethod
-    def time_max_gain(prices):
+    def time_max_gain(prices: pd.DataFrame) -> int:
         """
         Calculate the time taken for largest gain from trough to peak
 
@@ -709,7 +731,9 @@ class Profit():
 
 
     @staticmethod
-    def create_monthly_data(prices, equity):
+    def create_monthly_data(
+        prices: pd.DataFrame,
+        equity: int) -> pd.DataFrame:
         """
         Create monthly summary data
 

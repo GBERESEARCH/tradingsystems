@@ -16,10 +16,10 @@ class IndicatorExit():
 
     @staticmethod
     def exit_parabolic_sar(
-            prices: pd.DataFrame, 
-            time_period: int, 
-            acceleration_factor: float, 
-            sip_price: bool) -> tuple[pd.DataFrame, np.ndarray]:
+        prices: pd.DataFrame, 
+        time_period: int, 
+        acceleration_factor: float, 
+        sip_price: bool) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a Parabolic SAR.
 
