@@ -15,7 +15,10 @@ class Labels():
     """
 
     @classmethod
-    def strategy_labels(cls, params=None, default_dict=None):
+    def strategy_labels(
+        cls, 
+        params: dict, 
+        default_dict: dict) -> tuple[str, str, str]:
         """
         Create label and price signal for chosen strategy
 
@@ -54,7 +57,9 @@ class Labels():
 
 
     @staticmethod
-    def _entry_label(params=None, default_dict=None):
+    def _entry_label(
+        params: dict, 
+        default_dict: dict) -> str:
 
         # Simple or Exponential Moving Average label
         if params['simple_ma']:
@@ -189,7 +194,9 @@ class Labels():
 
 
     @staticmethod
-    def _exit_label(params=None, default_dict=None):
+    def _exit_label(
+        params: dict, 
+        default_dict: dict) -> str:
 
         # Exit labels
 
@@ -260,7 +267,9 @@ class Labels():
 
 
     @staticmethod
-    def _stop_label(params=None, default_dict=None):
+    def _stop_label(
+        params: dict, 
+        default_dict: dict) -> str:
 
         # Stop labels
 
@@ -295,7 +304,7 @@ class Labels():
 
 
     @staticmethod
-    def position_size_label(params):
+    def position_size_label(params: dict) -> dict:
         """
         Create position size label
 
@@ -341,7 +350,10 @@ class Dates():
     """
 
     @staticmethod
-    def date_set(start_date, end_date, lookback):
+    def date_set(
+        start_date: str, 
+        end_date: str, 
+        lookback: int) -> tuple[str, str]:
         """
         Create start and end dates if not supplied
 
@@ -386,7 +398,9 @@ class Reformat():
     """
 
     @staticmethod
-    def position_scale(pos_dict, position_size):
+    def position_scale(
+        pos_dict: dict, 
+        position_size: pd.Series) -> dict:
         """
         Scale raw positions by position size
 
@@ -430,7 +444,10 @@ class Reformat():
 
 
     @staticmethod
-    def map_to_prices(prices, input_dict, title_modifier):
+    def map_to_prices(
+        prices: pd.DataFrame, 
+        input_dict: dict, 
+        title_modifier: str) -> pd.DataFrame:
         """
         Map dictionary of arrays to the OHLC data
 
