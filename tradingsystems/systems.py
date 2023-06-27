@@ -6,6 +6,7 @@ results in table and graph form.
 
 # Imports
 import copy
+import pandas as pd
 from tradingsystems.graphs import PerformanceGraph as perfgraph
 from tradingsystems.marketdata import Markets, NorgateFunctions
 from tradingsystems.positions import Positions
@@ -273,7 +274,7 @@ class TestStrategy():
 
 
     @staticmethod
-    def _init_params(inputs):
+    def _init_params(inputs: dict) -> dict:
         """
         Initialise parameter dictionary
 
@@ -344,25 +345,29 @@ class TestStrategy():
 
 
     @classmethod
-    def prepare_data(cls, params, tables, market_data=None):
+    def prepare_data(
+        cls, 
+        params: dict, 
+        tables: dict, 
+        market_data: pd.DataFrame | None = None) -> tuple[dict, dict]:
         """
         Get market data ready to be analysed
 
         Parameters
         ----------
-        params : TYPE
-            DESCRIPTION.
-        tables : TYPE
-            DESCRIPTION.
-        data : TYPE, optional
-            DESCRIPTION. The default is None.
+        params : Dict
+            Dictionary of parameters.
+        tables : Dict
+            Dictionary of tables.
+        data : DataFrame, optional
+            DataFrame of OHLC data. The default is None.
 
         Returns
         -------
-        params : TYPE
-            DESCRIPTION.
-        tables : TYPE
-            DESCRIPTION.
+        params : Dict
+            Dictionary of parameters.
+        tables : Dict
+            Dictionary of tables.
 
         """
         params = cls._prepare_dates(params=params, market_data=market_data)
@@ -377,7 +382,9 @@ class TestStrategy():
 
 
     @staticmethod
-    def _prepare_dates(params, market_data=None):
+    def _prepare_dates(
+        params: dict, 
+        market_data: pd.DataFrame | None = None) -> dict:
 
         if market_data is None:
             # Set the start and end dates if not provided
@@ -393,7 +400,10 @@ class TestStrategy():
 
 
     @staticmethod
-    def _prepare_ticker_data(params, tables, market_data=None):
+    def _prepare_ticker_data(
+        params: dict, 
+        tables: dict, 
+        market_data: pd.DataFrame | None = None) -> tuple[dict, dict]:
 
         if params['input_data'] == 'reset':
             # Reset the prices and benchmark tables to the source data
@@ -417,8 +427,11 @@ class TestStrategy():
 
         return params, tables
 
+
     @staticmethod
-    def _prepare_benchmark_data(tables, params):
+    def _prepare_benchmark_data(
+        params: dict, 
+        tables: dict) -> tuple[dict, dict]:
 
         # Extract benchmark data for Beta calculation
         if params['ticker_source'] == 'norgate':
@@ -451,7 +464,7 @@ class TestStrategy():
         PerfReport.report_table(input_dict=self.tables['perf_dict'])
 
 
-    def performance_graph(self, signals=None):
+    def performance_graph(self, signals: bool | None = None):
         """
         Graph the performance of the strategy
 
@@ -510,7 +523,7 @@ class TestPortfolio():
 
 
     @staticmethod
-    def run_individual_tests(portfolio, **kwargs):
+    def run_individual_tests(portfolio: dict, **kwargs) -> dict:
         """
         Run backtests for each of the provided tickers.
 
@@ -567,7 +580,7 @@ class TestPortfolio():
 
 
     @staticmethod
-    def run_individual_tests_with_data(portfolio, **kwargs):
+    def run_individual_tests_with_data(portfolio: dict, **kwargs) -> dict:
         """
         Run backtests for each of the provided tickers.
 
@@ -648,14 +661,18 @@ class TestPortfolio():
 
 
     @staticmethod
-    def prep_portfolio_list(data, portfolio, asset_class, num_tickers):
+    def prep_portfolio_list(
+        top_ticker_list: list, 
+        portfolio: dict, 
+        asset_class: str, 
+        num_tickers: int) -> dict:
         """
         Prepare portfolio of tickers from top trend data
 
         Parameters
         ----------
-        data : TrendStrength object
-            Model containing the top trend data.
+        top_ticker list : list
+            List of top trending tickers obtained from TrendStrength object: top_trends['top_ticker_list']
         portfolio : Dict
             Dictionary to contain asset classes and ticker lists.
         asset_class : Str
@@ -669,21 +686,26 @@ class TestPortfolio():
             Dictionary to contain asset classes and ticker lists..
 
         """
-        input_list = data.top_trends['top_ticker_list'][:num_tickers]
+        #input_list = data.top_trends['top_ticker_list'][:num_tickers]
+        input_list = top_ticker_list[:num_tickers]
         portfolio.update({asset_class:list(zip(*input_list))[0]})
 
         return portfolio
 
 
     @staticmethod
-    def prep_portfolio_dict(data, portfolio, asset_class, num_tickers):
+    def prep_portfolio_dict(
+        top_ticker_dict: dict, 
+        portfolio: dict, 
+        asset_class: str, 
+        num_tickers: int) -> dict:
         """
         Prepare portfolio of tickers from top trend data
 
         Parameters
         ----------
-        data : TrendStrength object
-            Model containing the top trend data.
+        top_ticker_dict : dict
+            Dictionary of top trending tickers obtained from TrendStrength object: top_trends['top_ticker_dict']
         portfolio : Dict
             Dictionary to contain asset classes and ticker lists.
         asset_class : Str
@@ -698,7 +720,8 @@ class TestPortfolio():
 
         """
         input_dict = {}
-        for rank, pair in data.top_trends['top_ticker_dict'].items():
+        #for rank, pair in data.top_trends['top_ticker_dict'].items():
+        for rank, pair in top_ticker_dict.items():
             if rank < num_tickers:
                 input_dict[pair[0]] = pair[1]
         portfolio.update({asset_class:input_dict})
