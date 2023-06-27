@@ -7,6 +7,7 @@ import datetime as dt
 from decimal import Decimal
 import math
 import numpy as np
+import pandas as pd
 from scipy.stats import skew, kurtosis
 from tradingsystems.pnl import Profit
 from tradingsystems.winloss import Runs
@@ -20,7 +21,12 @@ class PerfReport():
     """
 
     @classmethod
-    def performance_data(cls, tables, params, labels, norgate_name_dict):
+    def performance_data(
+        cls,
+        tables: dict,
+        params: dict,
+        labels: dict,
+        norgate_name_dict: dict) -> dict:
         """
         Create dictionary of performance data.
 
@@ -264,7 +270,12 @@ class PerfReport():
 
 
     @staticmethod
-    def _perf_data_init(perf_dict, prices, params, labels, norgate_name_dict):
+    def _perf_data_init(
+        perf_dict: dict, 
+        prices: pd.DataFrame, 
+        params: dict, 
+        labels: dict, 
+        norgate_name_dict: dict) -> dict:
 
         # Contract and strategy details
         if (params['ticker_source'] == 'alpha'
@@ -300,7 +311,9 @@ class PerfReport():
 
 
     @staticmethod
-    def _perf_data_trades(perf_dict, tables):
+    def _perf_data_trades(
+        perf_dict: dict, 
+        tables: dict) -> dict:
 
         prices = tables['prices']
 
@@ -415,7 +428,10 @@ class PerfReport():
 
 
     @staticmethod
-    def _perf_data_stat_measures(perf_dict, tables, params):
+    def _perf_data_stat_measures(
+        perf_dict: dict,
+        tables: dict,
+        params: dict) -> dict:
 
         prices = tables['prices']
 
@@ -535,7 +551,7 @@ class PerfReport():
 
 
     @classmethod
-    def report_table(cls, input_dict):
+    def report_table(cls, input_dict: dict) -> None:
         """
         Print out backtesting performance results.
 
@@ -579,7 +595,7 @@ class PerfReport():
 
 
     @staticmethod
-    def _report_header(input_dict):
+    def _report_header(input_dict: dict) -> None:
 
         # Format header - centred and with lines above and below
         print('='*78)
@@ -651,7 +667,10 @@ class PerfReport():
 
 
     @staticmethod
-    def _report_trades(input_dict, win_run_dict, loss_run_dict):
+    def _report_trades(
+        input_dict: dict, 
+        win_run_dict: dict, 
+        loss_run_dict: dict) -> None:
 
         # Headers for # trades, Max, Min and Average with lines above and below
         print('-'*78)
@@ -721,7 +740,7 @@ class PerfReport():
 
 
     @staticmethod
-    def _report_equity(input_dict):
+    def _report_equity(input_dict: dict) -> None:
 
         # Open and Closed equity
         print('Open Equity.......... ${:>10}{:<6}{}{:>10}'.format(
@@ -811,7 +830,7 @@ class PerfReport():
 
 
     @staticmethod
-    def _report_key_perf(input_dict):
+    def _report_key_perf(input_dict: dict) -> None:
 
         # Key Performance Measures
         print('-'*78)
@@ -867,7 +886,7 @@ class PerfReport():
 
 
     @staticmethod
-    def _report_data_dist(input_dict):
+    def _report_data_dist(input_dict: dict) -> None:
 
         # Return Distribution statistics
 
@@ -897,7 +916,7 @@ class PerfReport():
 
 
     @staticmethod
-    def _dict_format(input_dict):
+    def _dict_format(input_dict: dict) -> dict:
         """
         Format the performance dictionary so that the financial data is
         rounded to 2 decimal places and set values as strings
