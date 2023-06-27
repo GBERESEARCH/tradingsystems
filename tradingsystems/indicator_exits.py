@@ -5,6 +5,7 @@ Exit signals using indicators.
 
 import random
 import numpy as np
+import pandas as pd
 from technicalmethods.methods import Indicators
 
 class IndicatorExit():
@@ -15,7 +16,10 @@ class IndicatorExit():
 
     @staticmethod
     def exit_parabolic_sar(
-            prices, time_period, acceleration_factor, sip_price):
+            prices: pd.DataFrame, 
+            time_period: int, 
+            acceleration_factor: float, 
+            sip_price: bool) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a Parabolic SAR.
 
@@ -276,7 +280,11 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_rsi_trail(prices, time_period, oversold, overbought):
+    def exit_rsi_trail(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        oversold: int, 
+        overbought: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a trailing RSI - a down close when the RSI is
         overbought when long or an up close when the RSI is oversold when
@@ -353,7 +361,9 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_key_reversal(prices, time_period):
+    def exit_key_reversal(
+        prices: pd.DataFrame, 
+        time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a key reversal day - a new high combined with
         a down close when long or a new low combined with an up close when
@@ -431,7 +441,10 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_volatility(prices, time_period, threshold):
+    def exit_volatility(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        threshold: float) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an increase in volatility - a fall in price
         greater than the ATR * Threshold when long or a rise in price greater
@@ -508,7 +521,9 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_stochastic_crossover(prices, time_period):
+    def exit_stochastic_crossover(
+        prices: pd.DataFrame, 
+        time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a stochastic crossover - if the slow k crosses
         below the slow d when long or if the slow k crosses above the slow d
@@ -584,7 +599,7 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_random(prices):
+    def exit_random(prices: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on the first losing day after a random time
         interval.
@@ -660,7 +675,9 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_support_resistance(prices, time_period):
+    def exit_support_resistance(
+        prices: pd.DataFrame, 
+        time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an n-day high / low.
 
@@ -738,7 +755,9 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_immediate_profit(prices, time_period):
+    def exit_immediate_profit(
+        prices: pd.DataFrame, 
+        time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an immediate n-day profit.
 
@@ -809,7 +828,9 @@ class IndicatorExit():
 
 
     @staticmethod
-    def exit_nday_range(prices, time_period):
+    def exit_nday_range(
+        prices: pd.DataFrame, 
+        time_period: int) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on an n-day range.
 
