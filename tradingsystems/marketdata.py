@@ -16,7 +16,10 @@ class Markets():
     """
     @classmethod
     def create_base_data(
-            cls, ticker=None, source=None, params=None):
+        cls, 
+        ticker: str | None = None, 
+        source: str | None = None, 
+        params: dict | None = None) -> tuple[pd.DataFrame, dict]:
         """
         Create DataFrame of OHLC prices from NorgateData or Yahoo Finance
 
@@ -71,7 +74,9 @@ class Markets():
 
 
     @classmethod
-    def reset_data(cls, tables, params):
+    def reset_data(cls, 
+        tables: dict,
+        params: dict) -> tuple[dict, dict]:
         """
         Reset price table to initial data
 
@@ -107,7 +112,9 @@ class Markets():
 
 
     @staticmethod
-    def return_yahoo_data(ticker, params):
+    def return_yahoo_data(
+        ticker: str, 
+        params: dict) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for specified ticker using Yahoo
         Finance as the source.
@@ -159,7 +166,10 @@ class Markets():
 
 
     @classmethod
-    def return_alphavantage_data(cls, params, ticker=None):
+    def return_alphavantage_data(
+        cls, 
+        params: dict, 
+        ticker: str | None = None) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for specified ticker using
         AlphaVantage as the source.
@@ -252,7 +262,10 @@ class Markets():
 
 
     @staticmethod
-    def _alphavantage_fx(ccy_1, ccy_2, api_key):
+    def _alphavantage_fx(
+        ccy_1: str, 
+        ccy_2: str, 
+        api_key: str) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for an fx pair using
         AlphaVantage as the source.
@@ -304,7 +317,10 @@ class Markets():
 
 
     @staticmethod
-    def _alphavantage_crypto(ccy_1, ccy_2, api_key):
+    def _alphavantage_crypto(
+        ccy_1: str, 
+        ccy_2: str, 
+        api_key: str) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for a cryptocurrency pair using
         AlphaVantage as the source.
@@ -358,7 +374,9 @@ class Markets():
 
 
     @staticmethod
-    def _alphavantage_equity(ticker, api_key):
+    def _alphavantage_equity(
+        ticker: str, 
+        api_key: str) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for an equity ticker using
         AlphaVantage as the source.
@@ -433,7 +451,9 @@ class NorgateFunctions():
     """
 
     @staticmethod
-    def return_norgate_data(ticker, params):
+    def return_norgate_data(
+        ticker: str, 
+        params: dict) -> pd.DataFrame:
         """
         Create DataFrame of historic prices for specified ticker using Norgate
         Data as the source.
@@ -466,7 +486,10 @@ class NorgateFunctions():
 
 
     @staticmethod
-    def contract_data(ticker, prices, params):
+    def contract_data(
+        ticker: str, 
+        prices: pd.DataFrame, 
+        params: dict) -> dict:
         """
         Specifies per-contract-margin and contract-point-value data
 
@@ -508,7 +531,7 @@ class NorgateFunctions():
 
 
     @staticmethod
-    def get_norgate_name_dict():
+    def get_norgate_name_dict() -> dict:
         """
         Creates a dictionary of the long names of the Norgate tickers.
 
