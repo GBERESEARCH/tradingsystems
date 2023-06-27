@@ -3,6 +3,7 @@ Indicator Entry signals
 
 """
 
+import pandas as pd
 import numpy as np
 from technicalmethods.methods import Indicators
 
@@ -13,7 +14,9 @@ class IndicatorEntry():
     """
 
     @staticmethod
-    def entry_parabolic_sar(prices, acceleration_factor):
+    def entry_parabolic_sar(
+        prices: pd.DataFrame, 
+        acceleration_factor: float) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on Parabolic SAR
 
@@ -235,7 +238,9 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_channel_breakout(prices, time_period):
+    def entry_channel_breakout(
+        prices: pd.DataFrame, 
+        time_period: int) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on a channel breakout.
 
@@ -304,7 +309,11 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_stochastic_crossover(prices, time_period, oversold, overbought):
+    def entry_stochastic_crossover(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        oversold: int, 
+        overbought: int) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on slow k / slow d stochastics crossing.
 
@@ -383,7 +392,11 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_stochastic_over_under(prices, time_period, oversold, overbought):
+    def entry_stochastic_over_under(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        oversold: int, 
+        overbought: int) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on slow k / slow d stochastics crossing
         overbought / oversold levels.
@@ -483,7 +496,11 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_stochastic_pop(prices, time_period, oversold, overbought):
+    def entry_stochastic_pop(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        oversold: int, 
+        overbought: int) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on the Stochastic Pop method
 
@@ -582,7 +599,11 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_rsi(prices, time_period, oversold, overbought):
+    def entry_rsi(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        oversold: int, 
+        overbought: int) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on the Relative Strength Index
 
@@ -652,7 +673,10 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_adx(prices, time_period, threshold):
+    def entry_adx(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        threshold: int) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on the ADX indicator.
 
@@ -742,7 +766,9 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_macd(prices, macd_params):
+    def entry_macd(
+        prices: pd.DataFrame, 
+        macd_params: tuple) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on the MACD indicator.
 
@@ -809,7 +835,10 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_commodity_channel_index(prices, time_period, threshold):
+    def entry_commodity_channel_index(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        threshold: float) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on the Commodity Channel Index
 
@@ -819,8 +848,8 @@ class IndicatorEntry():
             The OHLC data
         time_period : Int
             The number of days to use in the indicator calculation.
-        threshold : TYPE
-            DESCRIPTION.
+        threshold : Float
+            The threshold used for taking signals. The default is 0.
 
         Returns
         -------
@@ -879,7 +908,10 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_momentum(prices, time_period, threshold):
+    def entry_momentum(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        threshold: float) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on n-day momentum
 
@@ -949,7 +981,10 @@ class IndicatorEntry():
 
 
     @staticmethod
-    def entry_volatility(prices, time_period, threshold):
+    def entry_volatility(
+        prices: pd.DataFrame, 
+        time_period: int, 
+        threshold: float) -> tuple[pd.DataFrame, int, np.ndarray]:
         """
         Entry signals based on a volatility breakout.
 
