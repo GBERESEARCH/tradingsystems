@@ -17,7 +17,10 @@ class Positions():
 
     """
     @staticmethod
-    def calc_positions(prices, signal, start):
+    def calc_positions(
+        prices: pd.DataFrame, 
+        signal: pd.Series, 
+        start: int) -> dict:
         """
         Calculate start of day and end of day positions and any buy / sell
         trade actions
@@ -77,7 +80,9 @@ class Positions():
 
     @staticmethod
     def position_values(
-            prices, end_of_day_position, trade_price_dict):
+        prices: pd.DataFrame,
+        end_of_day_position: pd.Series,
+        trade_price_dict: dict) -> dict:
         """
         Calculate position values
 
@@ -223,7 +228,11 @@ class Positions():
 
 
     @classmethod
-    def position_size(cls, prices, benchmark, params):
+    def position_size(
+        cls,
+        prices: pd.DataFrame,
+        benchmark: pd.DataFrame,
+        params: dict) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
         """
         Calculate trade position size
 
@@ -231,7 +240,7 @@ class Positions():
         ----------
         prices : DataFrame
             The OHLC data.
-        benchmark : Series
+        benchmark : DataFrame
             The closing prices of the benchmark series
         params : Dict
             equity : Float
@@ -298,7 +307,9 @@ class Positions():
 
 
     @staticmethod
-    def _benchmark_position_size(benchmark, params):
+    def _benchmark_position_size(
+        benchmark: pd.DataFrame,
+        params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Set the position size to the number of shares that can be bought with
         # the initial equity
@@ -334,7 +345,9 @@ class Positions():
 
 
     @staticmethod
-    def _equity_constant_position_size(prices, params):
+    def _equity_constant_position_size(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Extract the raw trade signal from the OHLC data
         trade_number = prices['raw_trade_number']
@@ -377,7 +390,9 @@ class Positions():
 
 
     @staticmethod
-    def _equity_variable_position_size(prices, params):
+    def _equity_variable_position_size(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Extract the raw trade signal from the OHLC data
         trade_number = prices['raw_trade_number']
@@ -424,7 +439,9 @@ class Positions():
 
 
     @staticmethod
-    def _atr_position_size(prices, params):
+    def _atr_position_size(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Calculate ATR levels
         prices['position_ATR'] = Indicators.ATR(
@@ -510,7 +527,9 @@ class Positions():
 
 
     @staticmethod
-    def _fixed_position_size(prices, params):
+    def _fixed_position_size(
+        prices: pd.DataFrame, 
+        params: dict) -> tuple[pd.DataFrame, dict]:
 
         # Extract the raw trade signal from the OHLC data
         trade_number = prices['raw_trade_number']
