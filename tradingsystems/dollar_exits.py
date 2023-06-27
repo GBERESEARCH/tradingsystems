@@ -2,6 +2,7 @@
 Exit signals based on a dollar value.
 
 """
+import pandas as pd
 import numpy as np
 
 class DollarExit():
@@ -12,7 +13,10 @@ class DollarExit():
 
     @classmethod
     def exit_dollar(
-            cls, prices, trigger_value, exit_level):
+        cls,
+        prices: pd.DataFrame, 
+        trigger_value: np.ndarray, 
+        exit_level: str) -> tuple[pd.DataFrame, np.ndarray]: 
         """
         Calculate exit based on a dollar amount.
 
@@ -77,7 +81,9 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_profit_target(prices, trigger_value):
+    def _exit_profit_target(
+        prices: pd.DataFrame, 
+        trigger_value: np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a profit target.
 
@@ -138,7 +144,9 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_initial_dollar_loss(prices, trigger_value):
+    def _exit_initial_dollar_loss(
+        prices: pd.DataFrame, 
+        trigger_value: np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a given loss from the entry point.
 
@@ -200,7 +208,9 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_breakeven(prices, trigger_value):
+    def _exit_breakeven(
+        prices: pd.DataFrame, 
+        trigger_value: np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on passing a breakeven threshold.
 
@@ -275,7 +285,9 @@ class DollarExit():
 
 
     @staticmethod
-    def _exit_trailing(prices, trigger_value):
+    def _exit_trailing(
+        prices: pd.DataFrame, 
+        trigger_value: np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
         """
         Calculate exit based on a trailing stop.
 
