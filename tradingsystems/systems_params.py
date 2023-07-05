@@ -199,10 +199,7 @@ system_params_dict = {
             },
         'key_reversal':{
             'exit_period':10
-            },
-        'trailing_stop':{
-            'exit_amount':3000.00
-            },
+            },        
         'volatility':{
             'exit_period':5,
             'exit_threshold':1
@@ -212,23 +209,27 @@ system_params_dict = {
             'exit_oversold':25,
             'entry_overbought':75
             },
-        'profit_target':{
-            'exit_amount':3000.00
-            },
         'nday_range':{
             'exit_period':10
+            },
+        'random':{},    
+        'trailing_stop':{
+            'exit_amount':3000.00
+            },
+        'profit_target':{
+            'exit_amount':3000.00
             }
         },
 
     'df_stop_signal_dict':{
-        'initial_dollar':{
-            'stop_amount':1500.00
-            },
         'sup_res':{
             'stop_period':20
             },
         'immediate_profit':{
             'stop_period':5
+            },
+        'initial_dollar':{
+            'stop_amount':1500.00
             },
         'breakeven':{
             'stop_amount':1500.00
