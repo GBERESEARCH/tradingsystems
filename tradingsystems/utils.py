@@ -258,6 +258,14 @@ class Labels():
                           +'-day '
                           +default_dict['df_exit_signal_labels'][
                               params['exit_type']])
+            
+        # Random exit
+        elif params['exit_type'] in ['random']:
+
+            # Set the exit label
+            exit_label = (default_dict['df_exit_signal_labels'][
+                params['exit_type']]
+                +' exit')     
 
         # Otherwise raise an error
         else:
