@@ -474,6 +474,7 @@ class Reformat():
             The OHLC data.
 
         """
+
         # For each key, value combination in the input dictionary
         for key, value in input_dict.items():
 
@@ -482,3 +483,4 @@ class Reformat():
             prices[title_modifier+key] = value
 
         return prices
+    
