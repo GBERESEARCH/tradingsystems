@@ -122,7 +122,7 @@ class Trades():
         for row in range(len(prices)):
 
             # Get the current trade number
-            trade_num = trade_number[row]
+            trade_num = trade_number.iloc[row]
 
             # Get the index location of the trade entry date
             trade_first_row = prices.index.get_loc(
@@ -227,27 +227,27 @@ class Trades():
         for row in range(start, len(prices)):
 
             # Find the row that relates to the trade exit
-            trade_num = trade_number[row]
+            trade_num = trade_number.iloc[row]
             trade_last_row = prices.index.get_loc(
                 prices[trade_number==trade_num].index[-1])
 
             # If the raw trade signal is to change position and the current
             # end of day position is flat
-            if ((raw_trade_signal[row] != 0) and (
-                    end_of_day_position[row] == 0)):
+            if ((raw_trade_signal.iloc[row] != 0) and (
+                    end_of_day_position.iloc[row] == 0)):
 
                 # Set the combined signal to the raw entry signal
-                combined_signal[row] = raw_trade_signal[row]
+                combined_signal[row] = raw_trade_signal.iloc[row]
 
             else:
                 # If there is a trade on (based on the raw entry signal)
-                if trade_number[row] != 0:
+                if trade_number.iloc[row] != 0:
 
                     # If an exit has not yet been triggered
                     if flag:
 
                         # If there is a long position
-                        if end_of_day_position[row] > 0:
+                        if end_of_day_position.iloc[row] > 0:
 
                             # Set the trade signal to the minimum of the three
                             # series i.e. take any exit signal
@@ -255,7 +255,7 @@ class Trades():
                                 min(trade_signals.iloc[row]))
 
                         # If there is a short position
-                        elif end_of_day_position[row] < 0:
+                        elif end_of_day_position.iloc[row] < 0:
 
                             # Set the trade signal to the maximum of the three
                             # series i.e. take any exit signal
@@ -265,7 +265,7 @@ class Trades():
                         # If the position is flat
                         else:
                             # Set the trade signal to the raw entry signal
-                            combined_signal[row] = raw_trade_signal[row]
+                            combined_signal[row] = raw_trade_signal.iloc[row]
 
                         # If there is an exit signalled by any of the three
                         # series
@@ -276,10 +276,10 @@ class Trades():
 
                     # If an exit has been triggered and the current trade
                     # number is not the same as the previous day
-                    elif trade_number[row] != trade_number[row-1]:
+                    elif trade_number.iloc[row] != trade_number.iloc[row-1]:
 
                         # Set the trade signal to the raw entry signal
-                        combined_signal[row] = raw_trade_signal[row]
+                        combined_signal[row] = raw_trade_signal.iloc[row]
 
                         # Reset the exit flag
                         flag=True
@@ -288,11 +288,11 @@ class Trades():
                     # number is the same as the previous day and the raw entry
                     # signal is to change position
                     elif row == trade_last_row and abs(
-                            raw_trade_signal[row]) > 1:
+                            raw_trade_signal.iloc[row]) > 1:
 
                         # Set the trade signal to 1/2 raw entry signal
                         combined_signal[row] = int(
-                            raw_trade_signal[row] / 2)
+                            raw_trade_signal.iloc[row] / 2)
 
                         # Reset the exit flag
                         flag=True

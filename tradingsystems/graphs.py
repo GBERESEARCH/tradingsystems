@@ -490,7 +490,7 @@ class PerformanceGraph():
 
         elif 'macd' in params['entry_type']:
 
-            # Take the ADX, DI_plus and DI_minus values from the core DataFrame
+            # Take the MACD, MACD Signal and MACD Histogram values from the core DataFrame
             macd = prices[
                 es_dict['entry_signal_indicators'][params['entry_type']][0]]
             macd_signal = prices[

@@ -52,10 +52,10 @@ class IndicatorEntry():
         af_x_diff = np.array([0.0]*len(prices))
 
         # Configure initial values
-        initial_sip = 0.975 * close[0]
+        initial_sip = 0.975 * close.iloc[0]
         sar[0] = initial_sip
         direction[0] = 1
-        extreme_price[0] = high[0]
+        extreme_price[0] = high.iloc[0]
         incremental_af[0] = 0.02
         ep_sar_diff[0] = abs(sar[0] - extreme_price[0])
         af_x_diff[0] =  ep_sar_diff[0] * incremental_af[0]
@@ -70,7 +70,7 @@ class IndicatorEntry():
 
                 # If the previous day's sar was greater than the previous day's
                 # low
-                if sar[row-1] > low[row-1]:
+                if sar[row-1] > low.iloc[row-1]:
 
                     # If this is the starting trade
                     if init_flag:
@@ -95,10 +95,10 @@ class IndicatorEntry():
                 # multiplied by the difference between the extreme price and
                 # the sar is greater than the lowest low of the previous 2 days
                 elif (sar[row-1] + af_x_diff[row-1]
-                      > min(low[row-1], low[row-2])):
+                      > min(low.iloc[row-1], low.iloc[row-2])):
 
                     # Set the sar to the lowest low of the previous 2 days
-                    sar[row] = min(low[row-1], low[row-2])
+                    sar[row] = min(low.iloc[row-1], low.iloc[row-2])
 
                     # Set the direction to the same as the previous day
                     direction[row] = direction[row-1]
@@ -117,7 +117,7 @@ class IndicatorEntry():
             else:
                 # If the previous day's sar was less than the previous day's
                 # high
-                if sar[row-1] < high[row-1]:
+                if sar[row-1] < high.iloc[row-1]:
 
                     # Close the short position and go long
                     trade_signal[row-1] = 2
@@ -132,10 +132,10 @@ class IndicatorEntry():
                 # multiplied by the difference between the extreme price and
                 # the sar is less than the highest high of the previous 2 days
                 elif (sar[row-1] - af_x_diff[row-1]
-                      < max(high[row-1], high[row-2])):
+                      < max(high.iloc[row-1], high.iloc[row-2])):
 
                     # Set the sar to the highest high of the previous 2 days
-                    sar[row] = max(high[row-1], high[row-2])
+                    sar[row] = max(high.iloc[row-1], high.iloc[row-2])
 
                     # Set the direction to the same as the previous day
                     direction[row] = direction[row-1]
@@ -157,7 +157,7 @@ class IndicatorEntry():
                 if direction[row] != direction[row-1]:
 
                     # Set the extreme price to the day's high
-                    extreme_price[row] = high[row]
+                    extreme_price[row] = high.iloc[row]
 
                     # Set the initial acceleration factor to the input value
                     incremental_af[row] = acceleration_factor
@@ -167,7 +167,8 @@ class IndicatorEntry():
 
                     # Set the extreme price to the greater of the previous
                     # day's extreme price and the current day's high
-                    extreme_price[row] = max(extreme_price[row-1], high[row])
+                    extreme_price[row] = max(
+                        extreme_price[row-1], high.iloc[row])
 
                     # If the trade is making a new high
                     if extreme_price[row] > extreme_price[row-1]:
@@ -191,7 +192,7 @@ class IndicatorEntry():
                 if direction[row] != direction[row-1]:
 
                     # Set the extreme price to the day's low
-                    extreme_price[row] = low[row]
+                    extreme_price[row] = low.iloc[row]
 
                     # Set the initial acceleration factor to the input value
                     incremental_af[row] = acceleration_factor
@@ -201,7 +202,8 @@ class IndicatorEntry():
 
                     # Set the extreme price to the lesser of the previous day's
                     # extreme price and the current day's low
-                    extreme_price[row] = min(extreme_price[row-1], low[row])
+                    extreme_price[row] = min(
+                        extreme_price[row-1], low.iloc[row])
 
                     # If the trade is making a new low
                     if extreme_price[row] < extreme_price[row-1]:
@@ -279,7 +281,7 @@ class IndicatorEntry():
         for row in range(start, len(rolling_high_close)):
 
             # If the price rises to equal or above the n-day high close
-            if prices['Close'][row] >= rolling_high_close[row]:
+            if prices['Close'].iloc[row] >= rolling_high_close.iloc[row]:
 
                 # Set the position signal to long
                 position_signal[row] = 1
@@ -288,7 +290,7 @@ class IndicatorEntry():
                 trade_signal[row] = 1 - position_signal[row-1]
 
             # If the price falls to equal or below the n-day low close
-            elif prices['Close'][row] <= rolling_low_close[row]:
+            elif prices['Close'].iloc[row] <= rolling_low_close.iloc[row]:
 
                 # Set the position signal to short
                 position_signal[row] = -1
@@ -951,7 +953,7 @@ class IndicatorEntry():
         for row in range(start, len(n_day_close)):
 
             # If the price rises to equal or above the n-day high close
-            if prices['Close'][row] >= n_day_close[row] + threshold:
+            if prices['Close'].iloc[row] >= n_day_close.iloc[row] + threshold:
 
                 # Set the position signal to long
                 position_signal[row] = 1
@@ -960,7 +962,7 @@ class IndicatorEntry():
                 trade_signal[row] = 1 - position_signal[row-1]
 
             # If the price falls to equal or below the n-day low close
-            elif prices['Close'][row] <= n_day_close[row] - threshold:
+            elif prices['Close'].iloc[row] <= n_day_close.iloc[row] - threshold:
 
                 # Set the position signal to short
                 position_signal[row] = -1
@@ -1024,7 +1026,7 @@ class IndicatorEntry():
         for row in range(start, len(atr)):
 
             # If the increase in closing price exceeds the atr * threshold
-            if ((prices['Close'][row] - prices['Close'][row-1])
+            if ((prices['Close'].iloc[row] - prices['Close'].iloc[row-1])
                 > (atr[row] * threshold)):
 
                 # Set the position signal to long
@@ -1034,7 +1036,7 @@ class IndicatorEntry():
                 trade_signal[row] = 1 - position_signal[row-1]
 
             # If the decrease in closing price exceeds the atr * threshold
-            elif ((prices['Close'][row-1] - prices['Close'][row])
+            elif ((prices['Close'].iloc[row-1] - prices['Close'].iloc[row])
                   > (atr[row] * threshold)):
 
                 # Set the position signal to short

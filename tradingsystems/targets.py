@@ -195,18 +195,18 @@ class TradeTargets():
             # Calculate the trade target (distance that price has to change) by
             # dividing the dollar amount by the number of units making up the
             # position size
-            if position_size[row] == 0:
+            if position_size.iloc[row] == 0:
                 trade_target[row] = 0
             else:
                 trade_target[row] = np.round(
                     (dollar_amount / params['contract_point_value'])
-                    / position_size[row], 2)
+                    / position_size.iloc[row], 2)
 
             # If there is a trade on
-            if prices['raw_trade_number'][row] != 0:
+            if prices['raw_trade_number'].iloc[row] != 0:
 
                 # If there is a long position
-                if end_of_day_position[row] > 0:
+                if end_of_day_position.iloc[row] > 0:
 
                     # Set the profit target to the trade entry price plus the
                     # trade target

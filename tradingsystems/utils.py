@@ -258,14 +258,14 @@ class Labels():
                           +'-day '
                           +default_dict['df_exit_signal_labels'][
                               params['exit_type']])
-            
+
         # Random exit
         elif params['exit_type'] in ['random']:
 
             # Set the exit label
             exit_label = (default_dict['df_exit_signal_labels'][
                 params['exit_type']]
-                +' exit')     
+                +' exit')
 
         # Otherwise raise an error
         else:
@@ -434,11 +434,15 @@ class Reformat():
         end_of_day_position = np.array([0] * len(sod), dtype=int)
 
         for row in range(1, len(sod)):
-            start_of_day_position[row] = sod[row] * position_size[row-1]
+            start_of_day_position[row] = (
+                sod[row] * position_size.iloc[row-1]
+                )
             if tact[row] != 0:
                 trade_action[row] = (
-                    (-eod[row-1] * position_size[row-1]) + (
-                        (tact[row] + eod[row-1]) * position_size[row]))
+                    (-eod[row-1] * position_size.iloc[row-1]) + (
+                        (tact[row] + eod[row-1]) *
+                        position_size.iloc[row])
+                    )
             end_of_day_position[row] = (
                 start_of_day_position[row] + trade_action[row])
 
@@ -474,7 +478,6 @@ class Reformat():
             The OHLC data.
 
         """
-
         # For each key, value combination in the input dictionary
         for key, value in input_dict.items():
 
@@ -483,4 +486,3 @@ class Reformat():
             prices[title_modifier+key] = value
 
         return prices
-    

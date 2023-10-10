@@ -1,6 +1,5 @@
 """
 Dictionary containing all the default parameters
-
 """
 
 system_params_dict = {

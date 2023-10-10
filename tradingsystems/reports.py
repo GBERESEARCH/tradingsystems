@@ -481,7 +481,7 @@ class PerfReport():
 
         # Efficiency Ratio
         perf_dict['efficiency_ratio'] = np.round(
-            (abs(prices['Close'][-1] - prices['Close'][0])
+            (abs(prices['Close'].iloc[-1] - prices['Close'].iloc[0])
             / np.nansum(abs(prices['Close'] - prices['Close'].shift())))
             * 100, 2)
 
