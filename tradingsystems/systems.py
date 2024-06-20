@@ -143,6 +143,9 @@ class TestStrategy():
             # Generate backtest
             self.run_backtest(**kwargs)
 
+            # Generate signals when graph isn't drawn.    
+            self.generate_signals()
+
         else:
             # Carry out the backtest, print out results report and graph
             # performance
@@ -511,6 +514,55 @@ class TestStrategy():
             self.params = perfgraph.three_panel_graph(
             signals=signals, tables=self.tables, params=self.params,
             es_dict=es_dict)
+
+        return self
+    
+    def generate_signals(self):
+        """
+        Generate signals for data api when graph isn't drawn.
+
+        Parameters
+        ----------
+        params : Dict
+            Dictionary of parameters.
+        tables : Dict
+            Dictionary of tables.
+
+        Returns
+        -------
+        Updates params with graph_params and signal_dict.
+
+        """
+        # Dictionary to store entry signal data
+        es_dict = {}
+
+        # Entry labels
+        es_dict['entry_signal_labels'] = self.default_dict[
+            'df_entry_signal_labels']
+
+        # Entry signal indicator column names
+        es_dict['entry_signal_indicators'] = self.default_dict[
+            'df_entry_signal_indicators']
+
+        graph_params = perfgraph.graph_variables(
+                prices=self.tables['prices'], entry_type=self.params['entry_type'],
+                entry_signal_indicators=es_dict['entry_signal_indicators'])
+        
+        # Create the trade signal points
+        signal_dict = perfgraph.create_signals(
+            prices=self.tables['prices'], graph_params=graph_params)
+        
+        # If the entry is Parabolic SAR
+        if self.params['entry_type'] == 'sar':
+
+            # Extract the SAR series from the core DataFrame
+            indicator = self.tables['prices'][
+                es_dict['entry_signal_indicators'][self.params['entry_type']]]
+                
+        self.params['es_dict'] = es_dict
+        self.params['graph_params'] = graph_params
+        self.params['signal_dict'] = signal_dict
+        self.params['sar_indicator'] = indicator
 
         return self
 
