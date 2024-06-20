@@ -39,7 +39,7 @@ class PerformanceGraph():
         """
 
         # Setup initialization variables
-        graph_params = cls._graph_variables(
+        graph_params = cls.graph_variables(
                 prices=tables['prices'], entry_type=params['entry_type'],
                 entry_signal_indicators=es_dict['entry_signal_indicators'])
 
@@ -55,7 +55,7 @@ class PerformanceGraph():
             if signals:
 
                 # Create the trade signal points
-                signal_dict = cls._create_signals(
+                signal_dict = cls.create_signals(
                     prices=tables['prices'], graph_params=graph_params)
 
                 # Add these to the price chart
@@ -97,7 +97,7 @@ class PerformanceGraph():
         """
 
         # Setup initialization variables
-        graph_params = cls._graph_variables(
+        graph_params = cls.graph_variables(
                 prices=tables['prices'], entry_type=params['entry_type'],
                 entry_signal_indicators=es_dict['entry_signal_indicators'])
 
@@ -128,7 +128,7 @@ class PerformanceGraph():
             if signals:
 
                 # Create the trade signal points
-                signal_dict = cls._create_signals(
+                signal_dict = cls.create_signals(
                     prices=tables['prices'], graph_params=graph_params)
 
                 # Add these to the price chart
@@ -168,7 +168,7 @@ class PerformanceGraph():
 
 
     @staticmethod
-    def _graph_variables(
+    def graph_variables(
         prices: pd.DataFrame,
         entry_type: str,
         entry_signal_indicators: dict | None = None) -> dict:
@@ -614,7 +614,7 @@ class PerformanceGraph():
 
 
     @classmethod
-    def _create_signals(
+    def create_signals(
         cls,
         prices: pd.DataFrame,
         graph_params: dict) -> dict:
