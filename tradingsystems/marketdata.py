@@ -515,9 +515,9 @@ class NorgateFunctions():
             params['front_ticker'] = (
                 ticker[1:]
                 +'-'
-                +str(prices['Delivery Month'][-1])[:4]
+                +str(prices['Delivery Month'].iloc[-1])[:4]
                 +params['contract_months'][
-                    str(prices['Delivery Month'][-1])[4:6]])
+                    str(prices['Delivery Month'].iloc[-1])[4:6]])
 
             params['per_contract_margin'] = norgatedata.margin(
                 params['front_ticker'])
