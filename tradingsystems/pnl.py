@@ -140,10 +140,10 @@ class Profit():
         for row in range(1, len(close)):
 
             # If the current position is flat
-            if pos.iloc[row] == 0:
+            if pos.iat[row] == 0:
 
                 # If the previous days position was flat
-                if pos.iloc[row - 1] == 0:
+                if pos.iat[row - 1] == 0:
 
                     # Set the pnl to zero
                     day_pnl[row] = 0
@@ -154,45 +154,45 @@ class Profit():
                     # the difference between todays open and yesterdays close
                     # less the cost of slippage and commission
                     day_pnl[row] = (
-                        ((pos.iloc[row - 1] *
-                          (open_.iloc[row] - close.iloc[row - 1])
-                         - abs(pos.iloc[row - 1]
+                        ((pos.iat[row - 1] *
+                          (open_.iat[row] - close.iat[row - 1])
+                         - abs(pos.iat[row - 1]
                                * params['slippage']
                                * 0.0001
-                               * open_.iloc[row]))
+                               * open_.iat[row]))
                         - params['commission'])
                         * params['contract_point_value'])
 
             # If the current position is not flat
             else:
                 # If the position is the same as the previous day
-                if pos.iloc[row] == pos.iloc[row - 1]:
+                if pos.iat[row] == pos.iat[row - 1]:
 
                     # Set the pnl to the current position * the difference
                     # between todays close and yesterdays close
-                    day_pnl[row] = (pos.iloc[row]
-                                    * (close.iloc[row] - close.iloc[row - 1])
+                    day_pnl[row] = (pos.iat[row]
+                                    * (close.iat[row] - close.iat[row - 1])
                                     * params['contract_point_value'])
 
                 # If the position is reversed from the previous day
-                elif pos.iloc[row] == (-1) * pos.iloc[row - 1]:
+                elif pos.iat[row] == (-1) * pos.iat[row - 1]:
                     day_pnl[row] = (
-                        ((pos.iloc[row] * (close.iloc[row] - open_.iloc[row])
-                         - abs(pos.iloc[row]
+                        ((pos.iat[row] * (close.iat[row] - open_.iat[row])
+                         - abs(pos.iat[row]
                                * params['slippage']
                                * 0.0001
-                               * open_.iloc[row]))
+                               * open_.iat[row]))
                         - params['commission'])
                         * params['contract_point_value'])
 
                     last_day_trade_pnl[row] = (
-                        ((pos.iloc[row - 1] *
-                          (open_.iloc[row] - close.iloc[row - 1])
+                        ((pos.iat[row - 1] *
+                          (open_.iat[row] - close.iat[row - 1])
                          - abs(
-                             pos.iloc[row - 1]
+                             pos.iat[row - 1]
                              * params['slippage']
                              * 0.0001
-                             * open_.iloc[row]))
+                             * open_.iat[row]))
                         - params['commission'])
                         * params['contract_point_value'])
 
@@ -202,11 +202,11 @@ class Profit():
                     # between todays open and todays close less the cost of
                     # slippage and commission
                     day_pnl[row] = (
-                        ((pos.iloc[row] * (close.iloc[row] - open_.iloc[row])
-                         - abs(pos.iloc[row]
+                        ((pos.iat[row] * (close.iat[row] - open_.iat[row])
+                         - abs(pos.iat[row]
                                * params['slippage']
                                * 0.0001
-                               * open_.iloc[row]))
+                               * open_.iat[row]))
                         - params['commission'])
                         * params['contract_point_value'])
 
@@ -295,31 +295,31 @@ class Profit():
 
             # The index location of the trade entry date
             trade_first_row = prices.index.get_loc(
-                prices[trade_number==trade_number.iloc[row]].index[0])
+                prices[trade_number==trade_number.iat[row]].index[0])
 
             # The number of days since trade entry
             trade_row_num = row - trade_first_row
 
             # The index location of the trade entry date
             trade_last_row = prices.index.get_loc(
-                prices[trade_number==trade_number.iloc[row]].index[-1])
+                prices[trade_number==trade_number.iat[row]].index[-1])
 
             # Set the mtm equity to the previous days mtm equity plus
             # the days pnl
-            mtm_equity[row] = mtm_equity[row-1] + daily_pnl.iloc[row]
+            mtm_equity[row] = mtm_equity[row-1] + daily_pnl.iat[row]
 
             # If there is a current trade
-            if trade_number.iloc[row] != 0:
+            if trade_number.iat[row] != 0:
 
                 # If it is the trade entry date and there was no prior trade
                 if (trade_row_num == 0
-                    and trade_number.iloc[row-1] == 0):
+                    and trade_number.iat[row - 1] == 0):
 
                     # Set cumulative trade pnl to the days pnl
-                    cumulative_trade_pnl[row] = daily_pnl.iloc[row]
+                    cumulative_trade_pnl[row] = daily_pnl.iat[row]
 
                     # The maximum of the initial days pnl and zero
-                    max_trade_pnl[row] = max(daily_pnl.iloc[row], 0)
+                    max_trade_pnl[row] = max(daily_pnl.iat[row], 0)
 
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = closed_equity[row-1]
@@ -328,12 +328,12 @@ class Profit():
                 # If it is the trade entry date and this reverses the position
                 # of a prior trade
                 elif (trade_row_num == 0
-                    and trade_number.iloc[row-1] != 0):
+                    and trade_number.iat[row - 1] != 0):
 
                     # Set cumulative trade pnl to the previous days cumulative
                     # pnl plus the last days pnl
                     cumulative_trade_pnl[row] = (cumulative_trade_pnl[row-1]
-                                                 + last_day_trade_pnl.iloc[row])
+                                                 + last_day_trade_pnl.iat[row])
 
                     #  Set cumulative trade pnl to the previous days cumulative
                     # pnl plus the last days pnl
@@ -342,17 +342,17 @@ class Profit():
 
                     # Set the closed equity to the previous days closed equity
                     closed_equity[row] = (mtm_equity[row-1]
-                                          + last_day_trade_pnl.iloc[row])
+                                          + last_day_trade_pnl.iat[row])
 
 
                 # If it is the trade exit date and not a reversal
                 elif (trade_last_row - row == 0
-                      and trade_number.iloc[row] == trade_number.iloc[row-1]):
+                      and trade_number.iat[row] == trade_number.iat[row - 1]):
 
                     # Set cumulative trade pnl to the previous days cumulative
                     # pnl plus the days pnl
                     cumulative_trade_pnl[row] = (cumulative_trade_pnl[row-1]
-                                                 + daily_pnl.iloc[row])
+                                                 + daily_pnl.iat[row])
 
                     # The maximum of the current trade equity and the maximum
                     # trade equity of the previous day
@@ -365,18 +365,18 @@ class Profit():
 
                 # If it is the second day of a reversal trade
                 elif (trade_row_num == 1
-                      and trade_number.iloc[row-1] != trade_number.iloc[row-2]):
+                      and trade_number.iat[row - 1] != trade_number.iloc[row-2]):
 
                     # Set cumulative trade pnl to the previous days current
                     # pnl plus the days pnl
                     cumulative_trade_pnl[row] = (
-                        current_trade_pnl.iloc[row-1] + daily_pnl.iloc[row]
+                        current_trade_pnl.iat[row - 1] + daily_pnl.iat[row]
                         )
 
                     # The maximum of the first and second days pnl and zero
                     max_trade_pnl[row] = max(
                         cumulative_trade_pnl[row],
-                        current_trade_pnl.iloc[row-1]
+                        current_trade_pnl.iat[row - 1]
                         )
 
                     # Set the closed equity to the previous days closed equity
@@ -388,7 +388,7 @@ class Profit():
                     # Set cumulative trade pnl to the previous days cumulative
                     # pnl plus the days pnl
                     cumulative_trade_pnl[row] = (
-                        cumulative_trade_pnl[row-1] + daily_pnl.iloc[row]
+                        cumulative_trade_pnl[row-1] + daily_pnl.iat[row]
                         )
 
                     # The maximum of the current trade equity and the maximum
@@ -475,12 +475,12 @@ class Profit():
             # Maximum of max closed equity and current mtm equity, used in
             # calculating Average Max Retracement
             max_retracement[row] = max(
-                (max_closed_equity[row] - mtm_equity.iloc[row]), 0)
+                (max_closed_equity[row] - mtm_equity.iat[row]), 0)
 
             # Squared difference between max mtm equity and current mtm equity,
             # used in calculating Ulcer Index
             ulcer_index_d_sq[row] = (
-                (((max_mtm_equity[row] - mtm_equity.iloc[row])
+                (((max_mtm_equity[row] - mtm_equity.iat[row])
                  / max_mtm_equity[row]) * 100) ** 2)
 
         prices['max_closed_equity'] = max_closed_equity
@@ -526,22 +526,22 @@ class Profit():
 
             # Maximum drawdown is the smallest value of the current cumulative
             # pnl less the max of all previous rows cumulative pnl and zero
-            max_drawdown[row] = mtm_equity.iloc[row] - max_mtm_equity.iloc[row]
+            max_drawdown[row] = mtm_equity.iat[row] - max_mtm_equity.iat[row]
 
             # Percentage Maximum drawdown
             max_drawdown_perc[row] = (
-                (mtm_equity.iloc[row] - max_mtm_equity.iloc[row]) /
-                max_mtm_equity.iloc[row]
+                (mtm_equity.iat[row] - max_mtm_equity.iat[row]) /
+                max_mtm_equity.iat[row]
                 )
 
             # Maximum gain is the largest value of the current cumulative
             # pnl less the min of all previous rows and zero
-            max_gain[row] = mtm_equity.iloc[row] - min_mtm_equity.iloc[row]
+            max_gain[row] = mtm_equity.iat[row] - min_mtm_equity.iat[row]
 
             # Percentage Maximum gain
             max_gain_perc[row] = (
-                (mtm_equity.iloc[row] - min_mtm_equity.iloc[row]) /
-                min_mtm_equity.iloc[row]
+                (mtm_equity.iat[row] - min_mtm_equity.iat[row]) /
+                min_mtm_equity.iat[row]
                 )
 
         prices['max_dd'] = max_drawdown
@@ -583,15 +583,15 @@ class Profit():
 
             # The difference between the highest equity peak of the trade and
             # the current trade open equity
-            trade_pnl_drawback[row] = (max_trade_pnl.iloc[row]
-                                       - cumulative_trade_pnl.iloc[row])
+            trade_pnl_drawback[row] = (max_trade_pnl.iat[row]
+                                       - cumulative_trade_pnl.iat[row])
 
             # The percentage difference between the highest equity peak of the
             # trade and the current trade open equity
-            if max_trade_pnl.iloc[row] !=0:
+            if max_trade_pnl.iat[row] !=0:
                 trade_pnl_drawback_perc[row] = (
-                    (max_trade_pnl.iloc[row] - cumulative_trade_pnl.iloc[row])
-                    / max_trade_pnl.iloc[row])
+                    (max_trade_pnl.iat[row] - cumulative_trade_pnl.iat[row])
+                    / max_trade_pnl.iat[row])
 
         prices['trade_pnl_drawback'] = trade_pnl_drawback
         prices['trade_pnl_drawback_perc'] = trade_pnl_drawback_perc
@@ -626,16 +626,16 @@ class Profit():
 
             # Calculate Daily Perfect Profit
             dpp[row] = (
-                abs(prices['High'].iloc[row] - prices['Low'].iloc[row])
-                * prices['position_size_pp'].iloc[row])
+                abs(prices['High'].iat[row] - prices['Low'].iat[row])
+                * prices['position_size_pp'].iat[row])
 
             # If the High and Low are the same
             if dpp[row] == 0:
 
                 # Use the previous close
                 dpp[row] = (
-                    abs(prices['High'].iloc[row] - prices['Close'].iloc[row-1])
-                    * prices['position_size_pp'].iloc[row])
+                    abs(prices['High'].iat[row] - prices['Close'].iat[row - 1])
+                    * prices['position_size_pp'].iat[row])
 
         # Set this to the daily perfect profit
         prices['daily_perfect_profit'] = dpp * params['contract_point_value']
@@ -667,9 +667,9 @@ class Profit():
                 prices['Close'] * prices['position_size'] * params['margin_%'])
 
         for row in range(params['first_trade_start'], len(prices)):
-            prices['total_margin'].iloc[row] = (
-                prices['initial_margin'].iloc[row]
-                + max(0, -prices['cumulative_trade_pnl'].iloc[row]))
+            prices['total_margin'].iat[row] = (
+                prices['initial_margin'].iat[row]
+                + max(0, -prices['cumulative_trade_pnl'].iat[row]))
 
         return prices
 
@@ -773,10 +773,10 @@ class Profit():
             # Beginning equity is the closing equity from the prior period
             # Raw data keeps all the profits invested whereas the other resets
             # the equity balance each year
-            monthly_data['beginning_equity'].iloc[row] = monthly_data[
-                'end_equity'].iloc[row-1]
-            monthly_data['beginning_equity_raw'].iloc[row] = monthly_data[
-                'end_equity_raw'].iloc[row-1]
+            monthly_data['beginning_equity'].iat[row] = monthly_data[
+                'end_equity'].iat[row - 1]
+            monthly_data['beginning_equity_raw'].iat[row] = monthly_data[
+                'end_equity_raw'].iat[row - 1]
 
             monthly_data.index = pd.to_datetime(monthly_data.index)
             # For each change in year
@@ -784,54 +784,54 @@ class Profit():
 
                 # If the end of year equity level is less than the initial
                 # level
-                if monthly_data['end_equity'].iloc[row-1] < equity:
+                if monthly_data['end_equity'].iat[row - 1] < equity:
 
                     # Add back the difference to additions
-                    monthly_data['additions'].iloc[row] = (
-                        equity - monthly_data['end_equity'].iloc[row-1])
+                    monthly_data['additions'].iat[row] = (
+                        equity - monthly_data['end_equity'].iat[row - 1])
                 else:
                     # Otherwise subtract from withdrawals
-                    monthly_data['withdrawals'].iloc[row] = (
-                        equity - monthly_data['end_equity'].iloc[row-1])
+                    monthly_data['withdrawals'].iat[row] = (
+                        equity - monthly_data['end_equity'].iat[row - 1])
 
             # Ending equity is the beginning equity plus the sum of additions,
             # withdrawals and the net pnl over the period
-            monthly_data['end_equity'].iloc[row] = (
-                monthly_data['beginning_equity'].iloc[row]
-                + monthly_data['total_net_profit'].iloc[row]
-                + monthly_data['additions'].iloc[row]
-                + monthly_data['withdrawals'].iloc[row])
+            monthly_data['end_equity'].iat[row] = (
+                monthly_data['beginning_equity'].iat[row]
+                + monthly_data['total_net_profit'].iat[row]
+                + monthly_data['additions'].iat[row]
+                + monthly_data['withdrawals'].iat[row])
 
             # Ending equity raw is the beginning equity plus the net pnl over
             # the period
-            monthly_data['end_equity_raw'].iloc[row] = (
-                monthly_data['beginning_equity_raw'].iloc[row]
-                + monthly_data['total_net_profit'].iloc[row])
+            monthly_data['end_equity_raw'].iat[row] = (
+                monthly_data['beginning_equity_raw'].iat[row]
+                + monthly_data['total_net_profit'].iat[row])
 
             # Monthly return is the net pnl over the period divided by the
             # beginning equity plus the sum of additions and withdrawals
-            monthly_data['return'].iloc[row] = (
-                (monthly_data['total_net_profit'].iloc[row])
-                / (monthly_data['beginning_equity'].iloc[row]
-                   + monthly_data['additions'].iloc[row]
-                   + monthly_data['withdrawals'].iloc[row]))
+            monthly_data['return'].iat[row] = (
+                (monthly_data['total_net_profit'].iat[row])
+                / (monthly_data['beginning_equity'].iat[row]
+                   + monthly_data['additions'].iat[row]
+                   + monthly_data['withdrawals'].iat[row]))
 
             # Monthly return raw is the net pnl over the period divided by the
             # beginning equity raw
-            monthly_data['return_raw'].iloc[row] = (
-                (monthly_data['total_net_profit'].iloc[row])
-                / (monthly_data['beginning_equity_raw'].iloc[row]))
+            monthly_data['return_raw'].iat[row] = (
+                (monthly_data['total_net_profit'].iat[row])
+                / (monthly_data['beginning_equity_raw'].iat[row]))
 
             # For use in Gain to Pain Ratio, absolute loss is the positive
             # value of the negative monthly returns
-            if monthly_data['return'].iloc[row] < 0:
-                monthly_data['abs_loss'].iloc[row] = -monthly_data['return'].iloc[row]
+            if monthly_data['return'].iat[row] < 0:
+                monthly_data['abs_loss'].iat[row] = -monthly_data['return'].iat[row]
 
             # For use in Gain to Pain Ratio, absolute loss is the positive
             # value of the negative monthly returns
-            if monthly_data['return_raw'].iloc[row] < 0:
-                monthly_data['abs_loss_raw'].iloc[row] = -monthly_data[
-                    'return_raw'].iloc[row]
+            if monthly_data['return_raw'].iat[row] < 0:
+                monthly_data['abs_loss_raw'].iat[row] = -monthly_data[
+                    'return_raw'].iat[row]
 
         return monthly_data
 
@@ -845,13 +845,13 @@ class Profit():
 
         # Summarize daily pnl data by resampling to monthly
         monthly_data['total_net_profit'] = prices[
-            'daily_pnl'].resample('1M').sum()
+            'daily_pnl'].resample('1ME').sum()
         monthly_data['average_net_profit'] = prices[
-            'daily_pnl'].resample('1M').mean()
+            'daily_pnl'].resample('1ME').mean()
         monthly_data['max_net_profit'] = prices[
-            'daily_pnl'].resample('1M').max()
+            'daily_pnl'].resample('1ME').max()
         monthly_data['min_net_profit'] = prices[
-            'daily_pnl'].resample('1M').min()
+            'daily_pnl'].resample('1ME').min()
 
         # Create arrays of zeros to hold data
         monthly_data['beginning_equity'] = np.array([0.0]*len(monthly_data))
@@ -867,23 +867,23 @@ class Profit():
         monthly_data['abs_loss_raw'] = np.array([0.0]*len(monthly_data))
 
         # Set initial values
-        monthly_data['additions'].iloc[0] = equity
-        monthly_data['end_equity'].iloc[0] = (
-            monthly_data['beginning_equity'].iloc[0]
-            + monthly_data['additions'].iloc[0]
-            + monthly_data['withdrawals'].iloc[0]
-            + monthly_data['total_net_profit'].iloc[0])
-        monthly_data['return'].iloc[0] = (
-            (monthly_data['total_net_profit'].iloc[0])
-            / (monthly_data['beginning_equity'].iloc[0]
-               + monthly_data['additions'].iloc[0]
-               + monthly_data['withdrawals'].iloc[0]))
-        monthly_data['beginning_equity_raw'].iloc[0] = equity
-        monthly_data['end_equity_raw'].iloc[0] = (
-            monthly_data['beginning_equity_raw'].iloc[0]
-            + monthly_data['total_net_profit'].iloc[0])
-        monthly_data['return_raw'].iloc[0] = (
-            (monthly_data['total_net_profit'].iloc[0])
-            / (monthly_data['beginning_equity_raw'].iloc[0]))
+        monthly_data['additions'].iat[0] = equity
+        monthly_data['end_equity'].iat[0] = (
+            monthly_data['beginning_equity'].iat[0]
+            + monthly_data['additions'].iat[0]
+            + monthly_data['withdrawals'].iat[0]
+            + monthly_data['total_net_profit'].iat[0])
+        monthly_data['return'].iat[0] = (
+            (monthly_data['total_net_profit'].iat[0])
+            / (monthly_data['beginning_equity'].iat[0]
+               + monthly_data['additions'].iat[0]
+               + monthly_data['withdrawals'].iat[0]))
+        monthly_data['beginning_equity_raw'].iat[0] = equity
+        monthly_data['end_equity_raw'].iat[0] = (
+            monthly_data['beginning_equity_raw'].iat[0]
+            + monthly_data['total_net_profit'].iat[0])
+        monthly_data['return_raw'].iat[0] = (
+            (monthly_data['total_net_profit'].iat[0])
+            / (monthly_data['beginning_equity_raw'].iat[0]))
 
         return monthly_data
