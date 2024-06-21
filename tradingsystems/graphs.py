@@ -658,6 +658,15 @@ class PerformanceGraph():
 
         signal_dict['buy_long_marker'] = signal_dict[
             'buy_long_marker'][signal_dict['buy_long_signals']]
+        
+        # Add raw signal position for use in api
+        signal_dict['buy_long_marker_raw'] = (
+            graph_params['lower_bound']
+            * signal_dict['buy_long_signals']
+        )
+
+        signal_dict['buy_long_marker_raw'] = signal_dict[
+            'buy_long_marker_raw'][signal_dict['buy_long_signals']]
 
         # Set the dates for the buy long signals
         signal_dict['buy_long_dates'] = prices.index[
@@ -678,6 +687,14 @@ class PerformanceGraph():
 
         signal_dict['buy_flat_marker'] = signal_dict[
             'buy_flat_marker'][signal_dict['buy_flat_signals']]
+        
+        # Add raw signal position for use in api
+        signal_dict['buy_flat_marker_raw'] = (
+            graph_params['lower_bound']
+            * signal_dict['buy_flat_signals']
+        )
+        signal_dict['buy_flat_marker_raw'] = signal_dict[
+            'buy_flat_marker_raw'][signal_dict['buy_flat_signals']]
 
         # Set the dates for the buy flat signals
         signal_dict['buy_flat_dates'] = prices.index[
@@ -695,9 +712,18 @@ class PerformanceGraph():
             * signal_dict['sell_flat_signals']
             + flat_distance)
             #+ graph_params['upper_bound'].max()*flat_distance)
-
+        
         signal_dict['sell_flat_marker'] = signal_dict[
             'sell_flat_marker'][signal_dict['sell_flat_signals']]
+        
+        # Add raw signal position for use in api
+        signal_dict['sell_flat_marker_raw'] = (
+            graph_params['upper_bound']
+            * signal_dict['sell_flat_signals']
+        )
+
+        signal_dict['sell_flat_marker_raw'] = signal_dict[
+            'sell_flat_marker_raw'][signal_dict['sell_flat_signals']]
 
         # Set the dates for the sell flat signals
         signal_dict['sell_flat_dates'] = prices.index[
@@ -717,6 +743,15 @@ class PerformanceGraph():
 
         signal_dict['sell_short_marker'] = signal_dict[
             'sell_short_marker'][signal_dict['sell_short_signals']]
+        
+        # Add raw signal position for use in api
+        signal_dict['sell_short_marker_raw'] = (
+            graph_params['upper_bound']
+            * signal_dict['sell_short_signals']
+        )
+
+        signal_dict['sell_short_marker_raw'] = signal_dict[
+            'sell_short_marker_raw'][signal_dict['sell_short_signals']]
 
         # Set the dates for the sell short signals
         signal_dict['sell_short_dates'] = prices.index[
