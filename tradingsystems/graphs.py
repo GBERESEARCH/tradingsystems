@@ -638,6 +638,8 @@ class PerformanceGraph():
         """
         # Create empty dictionary
         signal_dict = {}
+        signal_dict['data_markers'] = {}
+
         upper, lower = cls._set_upper_lower(graph_params=graph_params)
 
         buy_sell_distance = 0.10 * (upper - lower) # 0.07
@@ -660,17 +662,19 @@ class PerformanceGraph():
             'buy_long_marker'][signal_dict['buy_long_signals']]
         
         # Add raw signal position for use in api
-        signal_dict['buy_long_marker_raw'] = (
+        signal_dict['data_markers']['openLong'] = (
             graph_params['lower_bound']
             * signal_dict['buy_long_signals']
         )
 
-        signal_dict['buy_long_marker_raw'] = signal_dict[
-            'buy_long_marker_raw'][signal_dict['buy_long_signals']]
+        signal_dict['data_markers']['openLong'] = signal_dict['data_markers'][
+            'openLong'][signal_dict['buy_long_signals']]
 
         # Set the dates for the buy long signals
         signal_dict['buy_long_dates'] = prices.index[
             signal_dict['buy_long_signals']]
+        
+        signal_dict['data_markers']['openLongDates'] = signal_dict['buy_long_dates']
 
         # Buy signal to go flat is where the current cumulative signal is to be
         # flat when yesterday it was short
@@ -689,16 +693,17 @@ class PerformanceGraph():
             'buy_flat_marker'][signal_dict['buy_flat_signals']]
         
         # Add raw signal position for use in api
-        signal_dict['buy_flat_marker_raw'] = (
+        signal_dict['data_markers']['closeShort'] = (
             graph_params['lower_bound']
             * signal_dict['buy_flat_signals']
         )
-        signal_dict['buy_flat_marker_raw'] = signal_dict[
-            'buy_flat_marker_raw'][signal_dict['buy_flat_signals']]
+        signal_dict['data_markers']['closeShort'] = signal_dict['data_markers']['closeShort'][signal_dict['buy_flat_signals']]
 
         # Set the dates for the buy flat signals
         signal_dict['buy_flat_dates'] = prices.index[
             signal_dict['buy_flat_signals']]
+        
+        signal_dict['data_markers']['closeShortDates'] = signal_dict['buy_flat_dates']
 
         # Sell signal to go flat is where the current cumulative signal is to
         # be flat when yesterday it was long
@@ -717,17 +722,18 @@ class PerformanceGraph():
             'sell_flat_marker'][signal_dict['sell_flat_signals']]
         
         # Add raw signal position for use in api
-        signal_dict['sell_flat_marker_raw'] = (
+        signal_dict['data_markers']['closeLong'] = (
             graph_params['upper_bound']
             * signal_dict['sell_flat_signals']
         )
 
-        signal_dict['sell_flat_marker_raw'] = signal_dict[
-            'sell_flat_marker_raw'][signal_dict['sell_flat_signals']]
+        signal_dict['data_markers']['closeLong'] = signal_dict['data_markers']['closeLong'][signal_dict['sell_flat_signals']]
 
         # Set the dates for the sell flat signals
         signal_dict['sell_flat_dates'] = prices.index[
             signal_dict['sell_flat_signals']]
+        
+        signal_dict['data_markers']['closeLongDates'] = signal_dict['sell_flat_dates']
 
         # Set the dates for the sell short signals
         signal_dict['sell_short_signals'] = (
@@ -745,17 +751,18 @@ class PerformanceGraph():
             'sell_short_marker'][signal_dict['sell_short_signals']]
         
         # Add raw signal position for use in api
-        signal_dict['sell_short_marker_raw'] = (
+        signal_dict['data_markers']['openShort'] = (
             graph_params['upper_bound']
             * signal_dict['sell_short_signals']
         )
 
-        signal_dict['sell_short_marker_raw'] = signal_dict[
-            'sell_short_marker_raw'][signal_dict['sell_short_signals']]
+        signal_dict['data_markers']['openShort'] = signal_dict['data_markers']['openShort'][signal_dict['sell_short_signals']]
 
         # Set the dates for the sell short signals
         signal_dict['sell_short_dates'] = prices.index[
             signal_dict['sell_short_signals']]
+        
+        signal_dict['data_markers']['openShortDates'] = signal_dict['sell_short_dates']
 
         return signal_dict
 
