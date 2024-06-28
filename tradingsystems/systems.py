@@ -558,11 +558,12 @@ class TestStrategy():
             # Extract the SAR series from the core DataFrame
             indicator = self.tables['prices'][
                 es_dict['entry_signal_indicators'][self.params['entry_type']]]
+        
+            self.params['sar_indicator'] = indicator
                 
         self.params['es_dict'] = es_dict
         self.params['graph_params'] = graph_params
         self.params['signal_dict'] = signal_dict
-        self.params['sar_indicator'] = indicator
 
         return self
 
