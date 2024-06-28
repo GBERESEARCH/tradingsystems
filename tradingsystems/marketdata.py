@@ -5,7 +5,8 @@ import os
 import numpy as np
 import pandas as pd
 import requests
-from yahoofinancials import YahooFinancials
+# from yahoofinancials import YahooFinancials
+import yfinance as yf
 # pylint: disable=import-outside-toplevel
 
 class Markets():
@@ -140,24 +141,33 @@ class Markets():
         """
 
         # Initialise data class
-        yahoo_financials = YahooFinancials(ticker)
-        freq='daily'
+        # yahoo_financials = YahooFinancials(ticker)
+        # freq='daily'
+
+        # # Extract historic prices
+        # prices = yahoo_financials.get_historical_price_data(
+        #     params['start_date'], params['end_date'], freq)
+
+        # # Reformat columns
+        # prices = pd.DataFrame(
+        #     prices[ticker]['prices']).drop(['date'], axis=1) \
+        #         .rename(columns={'formatted_date':'Date',
+        #                          'open': 'Open',
+        #                          'high': 'High',
+        #                          'low': 'Low',
+        #                          'close': 'Close',
+        #                          'volume': 'Volume'}) \
+        #         .loc[:, ['Date','Open','High','Low','Close','Volume']] \
+        #         .set_index('Date')
+
+        # Initialize a yFinance object with the supplied ticker
+        asset = yf.Ticker(ticker)
 
         # Extract historic prices
-        prices = yahoo_financials.get_historical_price_data(
-            params['start_date'], params['end_date'], freq)
+        prices = asset.history(start=params['start_date'], end=params['end_date'])
 
         # Reformat columns
-        prices = pd.DataFrame(
-            prices[ticker]['prices']).drop(['date'], axis=1) \
-                .rename(columns={'formatted_date':'Date',
-                                 'open': 'Open',
-                                 'high': 'High',
-                                 'low': 'Low',
-                                 'close': 'Close',
-                                 'volume': 'Volume'}) \
-                .loc[:, ['Date','Open','High','Low','Close','Volume']] \
-                .set_index('Date')
+        prices = prices.drop(['Dividends', 'Stock Splits'], axis=1)
 
         # Set Index to Datetime
         prices.index = pd.to_datetime(prices.index)
