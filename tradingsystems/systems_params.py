@@ -194,7 +194,7 @@ system_params_dict = {
         'rsi_trail':{
             'exit_period':9,
             'exit_oversold':25,
-            'entry_overbought':75
+            'exit_overbought':75
             },
         'key_reversal':{
             'exit_period':10
@@ -206,7 +206,7 @@ system_params_dict = {
         'stoch_cross':{
             'exit_period':14,
             'exit_oversold':25,
-            'entry_overbought':75
+            'exit_overbought':75
             },
         'nday_range':{
             'exit_period':10
