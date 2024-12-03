@@ -7,16 +7,17 @@ results in table and graph form.
 # Imports
 import copy
 import pandas as pd
+from tradingsystemsdata.graph_data import GraphData
+from tradingsystemsdata.marketdata import Markets, NorgateFunctions
+from tradingsystemsdata.positions import Positions
+from tradingsystemsdata.pnl import Profit
+from tradingsystemsdata.reports import PerfReport
+from tradingsystemsdata.signals import Signals
+from tradingsystemsdata.systems_params import system_params_dict
+from tradingsystemsdata.targets import TradeTargets
+from tradingsystemsdata.trades import Trades
+from tradingsystemsdata.utils import Labels, Dates, Reformat
 from tradingsystems.graphs import PerformanceGraph as perfgraph
-from tradingsystems.marketdata import Markets, NorgateFunctions
-from tradingsystems.positions import Positions
-from tradingsystems.pnl import Profit
-from tradingsystems.reports import PerfReport
-from tradingsystems.signals import Signals
-from tradingsystems.systems_params import system_params_dict
-from tradingsystems.targets import TradeTargets
-from tradingsystems.trades import Trades
-from tradingsystems.utils import Labels, Dates, Reformat
 
 
 class TestStrategy():
@@ -544,12 +545,12 @@ class TestStrategy():
         es_dict['entry_signal_indicators'] = self.default_dict[
             'df_entry_signal_indicators']
 
-        graph_params = perfgraph.graph_variables(
+        graph_params = GraphData.graph_variables(
                 prices=self.tables['prices'], entry_type=self.params['entry_type'],
                 entry_signal_indicators=es_dict['entry_signal_indicators'])
         
         # Create the trade signal points
-        signal_dict = perfgraph.create_signals(
+        signal_dict = GraphData.create_signals(
             prices=self.tables['prices'], graph_params=graph_params)
         
         # If the entry is Parabolic SAR
