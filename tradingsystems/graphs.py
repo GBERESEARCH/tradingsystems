@@ -41,8 +41,8 @@ class PerformanceGraph():
 
         # Setup initialization variables
         graph_params = GraphData.graph_variables(
-                prices=tables['prices'], entry_type=params['entry_type'],
-                entry_signal_indicators=es_dict['entry_signal_indicators'])
+            prices=tables['prices'], entry_type=params['entry_type'],
+            entry_signal_indicators=es_dict['entry_signal_indicators'])
 
         # Set the matplotlib style to use for the charts
         with plt.style.context('fivethirtyeight'):
@@ -99,8 +99,8 @@ class PerformanceGraph():
 
         # Setup initialization variables
         graph_params = GraphData.graph_variables(
-                prices=tables['prices'], entry_type=params['entry_type'],
-                entry_signal_indicators=es_dict['entry_signal_indicators'])
+            prices=tables['prices'], entry_type=params['entry_type'],
+            entry_signal_indicators=es_dict['entry_signal_indicators'])
 
         # All but the Stochastic, ADX and MACD Entry methods use a single
         # indicator column
@@ -347,7 +347,7 @@ class PerformanceGraph():
 
          # Assign the label from the default dictionary
         indicator_label = es_dict[
-                'entry_signal_labels'][params['entry_type']]
+            'entry_signal_labels'][params['entry_type']]
 
         # Set the figure size to 25 wide and 14 high
         plt.rcParams['figure.figsize'] = (25, 14)
