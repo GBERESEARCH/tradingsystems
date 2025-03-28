@@ -85,29 +85,6 @@ $ (.venv) python -m pip install tradingsystems
 
 &nbsp;
 
-To install in new environment using anaconda:
-```
-$ conda create --name systems
-```
-Activate new environment
-```
-$ activate systems
-```
-Install Python
-```
-(systems) $ conda install python==3.13
-```
-Install Spyder
-```
-(systems) $ conda install spyder
-```
-Install tradingsystems
-```
-(systems) $ python -m pip install tradingsystems
-```
-
-&nbsp;
-
 ### Setup
 
 Import tradingsystems
